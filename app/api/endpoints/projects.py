@@ -7,7 +7,7 @@ from app.models.user import Role
 
 router = APIRouter()
 
-@router.post("/", response_model=Project)
+@router.post("/projects/create", response_model=Project)
 def create_project(
     project: ProjectCreate,
     db: Session = Depends(get_db),
@@ -15,7 +15,7 @@ def create_project(
 ):
     return crud_project.create_project(db=db, project=project, owner_id=current_user.id)
 
-@router.get("/", response_model=list[Project])
+@router.get("/projects", response_model=list[Project])
 def read_projects(
     db: Session = Depends(get_db),
     skip: int = 0,

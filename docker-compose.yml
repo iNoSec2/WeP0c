@@ -3,13 +3,15 @@ version: '3.8'
 services:
   web:
     build: .
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload
+    command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload"
     volumes:
       - ./:/app
+      - /var/run/docker.sock:/var/run/docker.sock
     ports:
       - "8001:8001"
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     env_file:
       - .env
 
@@ -24,6 +26,11 @@ services:
       - postgres_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
   postgres_data:

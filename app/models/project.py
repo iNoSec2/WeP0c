@@ -2,6 +2,8 @@ from sqlalchemy import Column, Integer, String, ForeignKey
 from sqlalchemy.orm import relationship
 from app.database import Base
 
+# TODO : make id an uuid 
+
 class Project(Base):
     __tablename__ = "projects"
 
