@@ -1,0 +1,101 @@
+/* Custom styles for P0cit application */
+
+/* CSS Variables for theming */
+:root {
+  --primary-light: hsl(222.2 47.4% 30%);
+  --primary-dark-light: hsl(222.2 47.4% 20%);
+}
+
+.dark {
+  --primary-light: hsl(222.2 47.4% 20%);
+  --primary-dark-light: hsl(222.2 47.4% 15%);
+}
+
+/* Ensure sidebar items are visible */
+.sidebar-nav-container {
+  max-height: calc(100vh - 200px);
+  overflow-y: auto;
+  padding-right: 5px;
+}
+
+.sidebar-nav-container::-webkit-scrollbar {
+  width: 4px;
+}
+
+.sidebar-nav-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar-nav-container::-webkit-scrollbar-thumb {
+  background-color: rgba(155, 155, 155, 0.5);
+  border-radius: 20px;
+}
+
+/* Improve menu item visibility */
+.menu-item {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: flex;
+  align-items: center;
+}
+
+/* Ensure super admin has access to all routes */
+[data-role="super_admin"] .admin-only {
+  display: block !important;
+}
+
+/* Improve loading screen */
+.loading-screen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--background);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.loading-progress {
+  width: 300px;
+  height: 4px;
+  margin: 20px 0;
+  background-color: var(--muted);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.loading-progress-bar {
+  height: 100%;
+  background-color: var(--primary);
+  transition: width 0.3s ease;
+}
+
+.loading-message {
+  font-size: 14px;
+  color: var(--muted-foreground);
+  margin-top: 10px;
+}
+
+/* Loading animation */
+@keyframes pulse-glow {
+  0% {
+    box-shadow: 0 0 0 0 rgba(var(--primary), 0.4);
+  }
+
+  70% {
+    box-shadow: 0 0 0 10px rgba(var(--primary), 0);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgba(var(--primary), 0);
+  }
+}
+
+.pulse-animation {
+  animation: pulse-glow 2s infinite;
+}

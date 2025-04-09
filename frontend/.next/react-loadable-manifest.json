@@ -1,0 +1,14 @@
+{
+  "..\\node_modules\\@tanstack\\query-devtools\\build\\dev.js -> ./DevtoolsComponent/SUXNJKMM.js": {
+    "id": "..\\node_modules\\@tanstack\\query-devtools\\build\\dev.js -> ./DevtoolsComponent/SUXNJKMM.js",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_tanstack_query-devtools_build_DevtoolsComponent_SUXNJKMM_js.js"
+    ]
+  },
+  "..\\node_modules\\@tanstack\\query-devtools\\build\\dev.js -> ./DevtoolsPanelComponent/LDUQ2GE4.js": {
+    "id": "..\\node_modules\\@tanstack\\query-devtools\\build\\dev.js -> ./DevtoolsPanelComponent/LDUQ2GE4.js",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_tanstack_query-devtools_build_DevtoolsPanelComponent_LDUQ2GE4_js.js"
+    ]
+  }
+}

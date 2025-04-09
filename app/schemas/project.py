@@ -1,16 +1,37 @@
 from pydantic import BaseModel
-from typing import List
+from typing import List, Optional
+from uuid import UUID
+from datetime import datetime
 from app.schemas.vulnerability import Vulnerability
+from app.models.project import ProjectStatus
+
+class UserBase(BaseModel):
+    id: UUID
+    username: str
+    email: Optional[str] = None
 
 class ProjectBase(BaseModel):
     name: str
+    status: Optional[ProjectStatus] = ProjectStatus.planning
 
 class ProjectCreate(ProjectBase):
-    pass
+    client_id: UUID
+
+class ProjectUpdate(BaseModel):
+    name: Optional[str] = None
+    status: Optional[ProjectStatus] = None
+
+class ProjectAddPentester(BaseModel):
+    pentester_id: UUID
 
 class Project(ProjectBase):
-    id: int
+    id: UUID
+    client_id: UUID
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    client: Optional[UserBase] = None
+    pentesters: List[UserBase] = []
     vulnerabilities: List[Vulnerability] = []
 
     class Config:
-        orm_mode = True
+        from_attributes = True

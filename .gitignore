@@ -29,3 +29,53 @@ env/
 # OS generated files
 .DS_Store
 Thumbs.db
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Environment and local settings
+.env.*
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+.python-version
+.pytest_cache/
+
+# Database
+*.sqlite3
+*.db
+
+# Uploads and user data
+uploads/
+uploads/*
+media/
+
+# Docker
+.docker/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+
+# Logs
+*.log
+logs/
+
+# Dev environment
+notes.md
+TODO.md
