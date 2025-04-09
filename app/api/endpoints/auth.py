@@ -155,4 +155,16 @@ async def logout(request: Request):
     """
     response = JSONResponse(content={"message": "Successfully logged out"})
     response.delete_cookie("token")
-    return response 
+    return response
+
+@router.get("/auth/test-token", response_model=dict)
+async def test_token(current_user: UserModel = Depends(get_current_user)):
+    """
+    Test token validation endpoint
+    """
+    return {
+        "user_id": str(current_user.id),
+        "email": current_user.email,
+        "role": current_user.role,
+        "status": "valid"
+    } 

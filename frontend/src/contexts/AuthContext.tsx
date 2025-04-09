@@ -35,7 +35,8 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 // Helper function to set a cookie
 function setCookie(name: string, value: string, days = 7) {
     const expires = new Date(Date.now() + days * 864e5).toUTCString();
-    document.cookie = name + '=' + encodeURIComponent(value) + '; expires=' + expires + '; path=/';
+    // Make sure to encode the value to avoid issues with special characters
+    document.cookie = name + '=' + encodeURIComponent(value) + '; expires=' + expires + '; path=/; SameSite=Lax';
 }
 
 // Public routes that don't require authentication
@@ -136,14 +137,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     const login = async (email: string, password: string) => {
-        setIsLoading(true)
-        setError(null)
+        setIsLoading(true);
+        setError(null);
 
         try {
             console.log('Starting login process...');
             // Pass email and password to the loginToBackend function
             const authResponse = await loginToBackend(email, password);
-            console.log('Auth response received:', authResponse);
+
+            // Validate the auth response
+            if (!authResponse || !authResponse.access_token) {
+                console.error('No valid token received in authentication response');
+                throw new Error('Authentication failed: No valid token received');
+            }
+
+            console.log('Auth response received with token length:', authResponse.access_token.length);
 
             // Create a user object from the response
             const userObj: User = {
@@ -155,35 +163,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString()
             };
-            console.log('Created user object:', userObj);
+            console.log('Created user object for:', userObj.email);
 
-            // Update state and localStorage
-            setUser(userObj)
-            localStorage.setItem('user', JSON.stringify(userObj))
+            // Update state and localStorage for client-side auth
+            setUser(userObj);
+            localStorage.setItem('user', JSON.stringify(userObj));
+            localStorage.setItem('token', authResponse.access_token);
+            localStorage.setItem('access_token', authResponse.access_token);
 
             // Set up axios default headers for authenticated requests
-            axios.defaults.headers.common['Authorization'] = `Bearer ${authResponse.access_token}`
+            axios.defaults.headers.common['Authorization'] = `Bearer ${authResponse.access_token}`;
 
-            // Also set token as cookie for SSR
+            // Also set token as cookie for server-side auth
             setCookie('token', authResponse.access_token);
 
-            // Prevent redirect loops by setting a flag
-            setIsRedirecting(true);
-
-            console.log('Starting dashboard redirect...');
-            // Use the router (which will be caught by the middleware)
-            router.push('/dashboard');
-
-            // Reset the redirecting flag after navigation
-            setTimeout(() => setIsRedirecting(false), 500);
+            // Delay redirect slightly to ensure state updates are complete
+            setTimeout(() => {
+                console.log('Redirecting to dashboard...');
+                window.location.href = '/dashboard';
+            }, 100);
 
             return;
-        } catch (err) {
-            console.error('Login error:', err)
-            setError('Login failed')
+        } catch (err: any) {
+            console.error('Login error:', err.message || err);
+            setError(err.message || 'Login failed');
             throw err;
         } finally {
-            setIsLoading(false)
+            setIsLoading(false);
         }
     }
 

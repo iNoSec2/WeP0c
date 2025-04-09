@@ -49,16 +49,16 @@ export async function GET(request: Request) {
             );
         }
 
-        // First try to get the main backend URL
+        // Get the backend URL
         const backendURL = getBackendURL();
-        console.log('Fetching users from backend:', `${backendURL}/api/admin/users`);
+        console.log('Fetching projects from backend');
 
-        // Try multiple endpoint patterns to handle potential backend variations
+        // Try multiple endpoint patterns
         const endpoints = [
-            `${backendURL}/api/admin/users`,
-            `${backendURL}/api/admin/user`,
-            'http://api:8001/api/admin/users', // Direct container name if Next.js on server
-            'http://127.0.0.1:8001/api/admin/users' // Direct IP address for local development
+            `${backendURL}/api/admin/projects`,
+            `${backendURL}/api/projects`,
+            'http://api:8001/api/admin/projects',
+            'http://127.0.0.1:8001/api/admin/projects'
         ];
 
         let lastError = null;
@@ -71,7 +71,7 @@ export async function GET(request: Request) {
                     headers: {
                         'Authorization': `Bearer ${finalToken}`
                     },
-                    timeout: 3000 // Timeout after 3 seconds
+                    timeout: 5000
                 });
 
                 console.log(`Successful response from ${endpoint}`);
@@ -84,53 +84,53 @@ export async function GET(request: Request) {
         }
 
         // If we're here, all endpoints failed
-        console.error('All backend endpoints failed:', lastError?.message);
+        console.error('All backend endpoints failed for projects:', lastError?.message);
 
         // For development, provide mock data
         if (process.env.NODE_ENV === 'development') {
-            console.log('Development mode: Returning mock user data');
+            console.log('Development mode: Returning mock project data');
             return NextResponse.json([
                 {
                     id: '00000000-0000-4000-a000-000000000001',
-                    username: 'admin',
-                    email: 'admin@example.com',
-                    full_name: 'Admin User',
-                    role: 'SUPER_ADMIN',
-                    is_active: true
+                    name: 'Security Assessment',
+                    description: 'Web application security assessment',
+                    client_id: '00000000-0000-4000-a000-000000000003',
+                    start_date: '2023-05-01',
+                    end_date: '2023-05-15',
+                    status: 'COMPLETED',
+                    client: {
+                        name: 'Client Company',
+                        id: '00000000-0000-4000-a000-000000000003'
+                    }
                 },
                 {
                     id: '00000000-0000-4000-a000-000000000002',
-                    username: 'pentester1',
-                    email: 'pentester1@example.com',
-                    full_name: 'Security Tester',
-                    role: 'PENTESTER',
-                    is_active: true
-                },
-                {
-                    id: '00000000-0000-4000-a000-000000000003',
-                    username: 'client1',
-                    email: 'client1@example.com',
-                    full_name: 'Client User',
-                    role: 'CLIENT',
-                    is_active: true
+                    name: 'Penetration Test',
+                    description: 'Network penetration testing',
+                    client_id: '00000000-0000-4000-a000-000000000003',
+                    start_date: '2023-06-01',
+                    end_date: '2023-06-15',
+                    status: 'IN_PROGRESS',
+                    client: {
+                        name: 'Client Company',
+                        id: '00000000-0000-4000-a000-000000000003'
+                    }
                 }
             ]);
         }
 
         // Return proper error response
         const status = lastError?.response?.status || 500;
-        const message = lastError?.response?.data?.detail || 'Failed to fetch users';
+        const message = lastError?.response?.data?.detail || 'Failed to fetch projects';
 
         return NextResponse.json(
             { error: message },
             { status: status }
         );
     } catch (error: any) {
-        console.error('Error in admin users request:', error);
-
-        // Return proper error response
+        console.error('Error in admin projects request:', error);
         return NextResponse.json(
-            { error: 'Failed to process admin users request' },
+            { error: 'Failed to process admin projects request' },
             { status: 500 }
         );
     }
@@ -170,22 +170,18 @@ export async function POST(request: Request) {
 
         // Parse the request body
         const body = await request.json();
-        console.log('Creating user with data:', body);
+        console.log('Creating project with data:', body);
 
-        // Ensure role is set
-        if (!body.role) {
-            body.role = 'USER'; // Default role if none provided
-        }
-
-        // First try to get the main backend URL
+        // Get the backend URL
         const backendURL = getBackendURL();
 
-        // Try multiple endpoint patterns to handle potential backend variations
+        // Try multiple endpoint patterns
         const endpoints = [
-            `${backendURL}/api/admin/user`, // This is the correct one based on backend code
-            `${backendURL}/api/admin/users`,
-            'http://api:8001/api/admin/user', // Direct container name if Next.js on server
-            'http://127.0.0.1:8001/api/admin/user' // Direct IP address for local development
+            `${backendURL}/api/admin/project`,
+            `${backendURL}/api/admin/projects`,
+            `${backendURL}/api/projects`,
+            'http://api:8001/api/admin/project',
+            'http://127.0.0.1:8001/api/admin/project'
         ];
 
         let lastError = null;
@@ -193,55 +189,65 @@ export async function POST(request: Request) {
         // Try each endpoint until one works
         for (const endpoint of endpoints) {
             try {
-                console.log(`Trying to create user at endpoint: ${endpoint}`);
+                console.log(`Trying to create project at endpoint: ${endpoint}`);
                 const response = await axios.post(endpoint, body, {
                     headers: {
                         'Authorization': `Bearer ${finalToken}`,
                         'Content-Type': 'application/json'
                     },
-                    timeout: 3000 // Timeout after 3 seconds
+                    timeout: 5000
                 });
 
-                console.log(`User successfully created at ${endpoint}`);
+                console.log(`Project successfully created at ${endpoint}`);
                 return NextResponse.json(response.data, { status: 201 });
             } catch (error: any) {
                 console.log(`Endpoint ${endpoint} failed:`, error.message);
                 lastError = error;
+
+                // Log detailed error information for debugging
+                if (error.response) {
+                    console.log('Error response status:', error.response.status);
+                    console.log('Error response data:', error.response.data);
+                }
+
                 // Continue to the next endpoint
             }
         }
 
         // If we're here, all endpoints failed
-        console.error('All backend endpoints failed for user creation:', lastError?.message);
+        console.error('All backend endpoints failed for project creation:', lastError?.message);
 
         // For development, provide mock response
         if (process.env.NODE_ENV === 'development') {
-            console.log('Development mode: Returning mock user creation response');
+            console.log('Development mode: Returning mock project creation response');
             return NextResponse.json({
                 id: '00000000-0000-4000-a000-' + Math.floor(Math.random() * 1000000000000).toString().padStart(12, '0'),
-                username: body.username || 'newuser',
-                email: body.email || 'user@example.com',
-                full_name: body.full_name || '',
-                role: body.role || 'USER',
-                is_active: true,
+                name: body.name || 'New Project',
+                description: body.description || 'Project description',
+                client_id: body.client_id || '00000000-0000-4000-a000-000000000003',
+                start_date: body.start_date || new Date().toISOString().split('T')[0],
+                end_date: body.end_date || null,
+                status: body.status || 'PLANNED',
                 created_at: new Date().toISOString()
             }, { status: 201 });
         }
 
         // Return detailed error message for debugging
         const status = lastError?.response?.status || 500;
-        const message = lastError?.response?.data?.detail || 'Failed to create user';
+        const message = lastError?.response?.data?.detail || 'Failed to create project';
 
         return NextResponse.json(
-            { error: message, details: lastError?.response?.data },
+            {
+                error: message,
+                details: lastError?.response?.data,
+                requestBody: body  // Include the request body for debugging
+            },
             { status: status }
         );
     } catch (error: any) {
-        console.error('Error in user creation process:', error);
-
-        // Return proper error response
+        console.error('Error in project creation process:', error);
         return NextResponse.json(
-            { error: 'Failed to process user creation request' },
+            { error: 'Failed to process project creation request' },
             { status: 500 }
         );
     }

@@ -73,12 +73,15 @@ export default function DashboardPage() {
         staleTime: 60000, // 1 minute
     });
 
-    // Fetch recent vulnerabilities
-    const { data: recentVulnerabilities = [], isLoading: vulnerabilitiesLoading } = useQuery<Vulnerability[]>({
+    // Fetch recent vulnerabilities with proper error handling
+    const { data: vulnerabilitiesData, isLoading: vulnerabilitiesLoading } = useQuery<Vulnerability[]>({
         queryKey: ["recent-vulnerabilities"],
         queryFn: vulnerabilitiesAPI.getRecent,
         staleTime: 60000, // 1 minute
     });
+
+    // Ensure we always have an array even if data is undefined
+    const recentVulnerabilities = Array.isArray(vulnerabilitiesData) ? vulnerabilitiesData : [];
 
     // Mutation for executing POCs
     const executePocMutation = useMutation({
@@ -245,18 +248,28 @@ export default function DashboardPage() {
                             </CardHeader>
                             <CardContent>
                                 <div className="space-y-4">
-                                    {recentVulnerabilities.slice(0, 3).map((vulnerability: any) => (
-                                        <PocDisplay
-                                            key={vulnerability.id}
-                                            vulnerability={vulnerability}
-                                            onExecute={(result) => {
-                                                console.log('POC execution result:', result);
-                                                // You can add additional logic here if needed
-                                            }}
-                                            isExecuting={executePocMutation.isPending && executePocMutation.variables === vulnerability.id}
-                                            executeHandler={() => executePocMutation.mutate(vulnerability.id)}
-                                        />
-                                    ))}
+                                    {recentVulnerabilities.length > 0 ? (
+                                        recentVulnerabilities.slice(0, 3).map((vulnerability: any) => (
+                                            <PocDisplay
+                                                key={vulnerability.id}
+                                                vulnerability={vulnerability}
+                                                onExecute={(result) => {
+                                                    console.log('POC execution result:', result);
+                                                    // You can add additional logic here if needed
+                                                }}
+                                                isExecuting={executePocMutation.isPending && executePocMutation.variables === vulnerability.id}
+                                                executeHandler={() => executePocMutation.mutate(vulnerability.id)}
+                                            />
+                                        ))
+                                    ) : (
+                                        <div className="flex flex-col items-center justify-center p-6 text-center">
+                                            <Bug className="h-10 w-10 text-muted-foreground mb-2" />
+                                            <h3 className="text-lg font-medium">No vulnerabilities yet</h3>
+                                            <p className="text-sm text-muted-foreground mt-1">
+                                                Vulnerabilities found during pentests will appear here
+                                            </p>
+                                        </div>
+                                    )}
                                 </div>
                             </CardContent>
                         </Card>
@@ -264,18 +277,30 @@ export default function DashboardPage() {
 
                     <TabsContent value="pocs" className="space-y-4">
                         <div className="grid grid-cols-1 gap-4">
-                            {recentVulnerabilities.filter((v: any) => v.poc_code).map((vulnerability: any) => (
-                                <PocDisplay
-                                    key={vulnerability.id}
-                                    vulnerability={vulnerability}
-                                    onExecute={(result) => {
-                                        console.log('POC execution result:', result);
-                                        // You can add additional logic here if needed
-                                    }}
-                                    isExecuting={executePocMutation.isPending && executePocMutation.variables === vulnerability.id}
-                                    executeHandler={() => executePocMutation.mutate(vulnerability.id)}
-                                />
-                            ))}
+                            {recentVulnerabilities.filter((v: any) => v.poc_code).length > 0 ? (
+                                recentVulnerabilities.filter((v: any) => v.poc_code).map((vulnerability: any) => (
+                                    <PocDisplay
+                                        key={vulnerability.id}
+                                        vulnerability={vulnerability}
+                                        onExecute={(result) => {
+                                            console.log('POC execution result:', result);
+                                            // You can add additional logic here if needed
+                                        }}
+                                        isExecuting={executePocMutation.isPending && executePocMutation.variables === vulnerability.id}
+                                        executeHandler={() => executePocMutation.mutate(vulnerability.id)}
+                                    />
+                                ))
+                            ) : (
+                                <Card>
+                                    <CardContent className="flex flex-col items-center justify-center p-6 text-center">
+                                        <Shield className="h-10 w-10 text-muted-foreground mb-2" />
+                                        <h3 className="text-lg font-medium">No PoCs available</h3>
+                                        <p className="text-sm text-muted-foreground mt-1">
+                                            Proof of Concept code for vulnerabilities will appear here
+                                        </p>
+                                    </CardContent>
+                                </Card>
+                            )}
                         </div>
                     </TabsContent>
 

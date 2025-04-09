@@ -15,19 +15,20 @@ export const getBackendURL = () => {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL;
         if (!apiUrl) {
             console.warn('NEXT_PUBLIC_API_URL environment variable is not set in production mode');
-            return 'http://p0cit-app:8001'; // Use container name in Docker environment
+            return 'http://api:8001'; // Use container name in Docker environment
         }
         return apiUrl;
     }
 
-    // For server-side calls (SSR) in Next.js, use the internal Docker network IP
+    // For server-side calls (SSR) in Next.js, use the explicit service name from docker-compose
+    // This ensures consistent behavior across all server-side API calls
     if (typeof window === 'undefined') {
-        // Use IP address instead of hostname to prevent IPv6 resolution issues
-        return "http://api:8001"; // Using the service name as defined in docker-compose
+        return "http://api:8001";
     }
 
-    // For client-side (browser) calls, use the browser-visible address
-    return "http://127.0.0.1:8001"; // Use explicit IPv4 instead of localhost
+    // For client-side (browser) calls, use local address
+    // This addresses IPv4/IPv6 compatibility issues and ensures connectivity
+    return "http://localhost:8001";
 };
 
 // Helper function to get the token from localStorage

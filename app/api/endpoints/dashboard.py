@@ -46,7 +46,7 @@ async def get_dashboard_stats(
 
     # Get critical vulnerabilities count
     critical_vulnerabilities = vulnerabilities_query.filter(
-        Vulnerability.severity == VulnerabilitySeverity.critical
+        Vulnerability.severity == VulnerabilitySeverity.CRITICAL
     ).count()
 
     # Get pentest (mission) statistics

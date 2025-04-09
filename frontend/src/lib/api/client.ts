@@ -3,15 +3,27 @@ import { getBackendURL, getToken } from ".";
 
 // Create a base axios instance for API requests
 const apiClient = axios.create({
-    baseURL: getBackendURL(),
+    // Don't set baseURL here as it's evaluated once at import time
     headers: {
         "Content-Type": "application/json",
     },
 });
 
+// Initialize auth headers from localStorage if token exists (client-side only)
+if (typeof window !== 'undefined') {
+    const token = localStorage.getItem('token') || localStorage.getItem('access_token');
+    if (token) {
+        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+        apiClient.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    }
+}
+
 // Add request interceptor to attach auth token to all requests
 apiClient.interceptors.request.use(
     (config) => {
+        // Set the baseURL dynamically on each request
+        config.baseURL = getBackendURL();
+
         // For SSR, we can't access localStorage so we skip token injection
         if (typeof window === 'undefined') {
             return config;

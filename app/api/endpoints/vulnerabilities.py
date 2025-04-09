@@ -14,6 +14,32 @@ import markdown2
 
 router = APIRouter(tags=["vulnerabilities"])
 
+@router.get("/recent", response_model=List[Vulnerability])
+async def get_recent_vulnerabilities(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    limit: int = 5
+):
+    """Get recent vulnerabilities with optional limit parameter."""
+    vulnerabilities = crud_vulnerability.get_recent(db, limit=limit)
+
+    # Process markdown to HTML for each vulnerability
+    for vuln in vulnerabilities:
+        if vuln.description_md:
+            vuln.description_html = markdown2.markdown(
+                vuln.description_md,
+                extras=["fenced-code-blocks", "tables", "break-on-newline"]
+            )
+
+        # Make sure POC code is properly formatted for display
+        if vuln.poc_code and not vuln.poc_html:
+            vuln.poc_html = markdown2.markdown(
+                f"```\n{vuln.poc_code}\n```",
+                extras=["fenced-code-blocks", "tables", "break-on-newline"]
+            )
+
+    return vulnerabilities
+
 @router.post("/vulnerabilities/{project_id}", response_model=Vulnerability)
 async def create_vulnerability(
     project_id: UUID,
@@ -109,29 +135,3 @@ async def execute_vulnerability_poc(
         "output": result["output"],
         "exit_code": result["exit_code"]
     }
-
-@router.get("/recent", response_model=List[Vulnerability])
-async def get_recent_vulnerabilities(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-    limit: int = 5
-):
-    """Get recent vulnerabilities with optional limit parameter."""
-    vulnerabilities = crud_vulnerability.get_recent(db, limit=limit)
-
-    # Process markdown to HTML for each vulnerability
-    for vuln in vulnerabilities:
-        if vuln.description_md:
-            vuln.description_html = markdown2.markdown(
-                vuln.description_md,
-                extras=["fenced-code-blocks", "tables", "break-on-newline"]
-            )
-
-        # Make sure POC code is properly formatted for display
-        if vuln.poc_code and not vuln.poc_html:
-            vuln.poc_html = markdown2.markdown(
-                f"```\n{vuln.poc_code}\n```",
-                extras=["fenced-code-blocks", "tables", "break-on-newline"]
-            )
-
-    return vulnerabilities
