@@ -12,11 +12,24 @@ export function useAuth() {
         queryKey: ["user"],
         queryFn: async () => {
             try {
-                return await authService.getCurrentUser();
+                // Check if token exists
+                const token = localStorage.getItem("token") || localStorage.getItem("access_token");
+                if (!token) {
+                    console.log("No auth token found, user is not authenticated");
+                    return null;
+                }
+
+                const userData = await authService.getCurrentUser();
+                return userData;
             } catch (error) {
+                console.error("Error fetching current user:", error);
                 return null;
             }
         },
+        // Retry failed requests 1 time
+        retry: 1,
+        // Set stale time to 5 minutes
+        staleTime: 5 * 60 * 1000,
     });
 
     const loginMutation = useMutation({

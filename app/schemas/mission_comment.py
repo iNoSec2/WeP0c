@@ -33,6 +33,10 @@ class MissionCommentInDBBase(MissionCommentBase):
 class MissionComment(MissionCommentInDBBase):
     pass
 
+# Response model that endpoints are looking for
+class MissionCommentResponse(MissionComment):
+    pass
+
 # MissionComment Schema with Relationships
 class MissionCommentWithRelations(MissionComment):
     mission: Optional[Mission] = None

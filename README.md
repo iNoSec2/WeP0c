@@ -1,125 +1,146 @@
 # P0cit - Penetration Testing Management Platform
 
-P0cit is a comprehensive platform for managing penetration testing projects, vulnerabilities, and client collaboration.
+P0cit is a platform designed to help penetration testers and security teams manage their penetration testing projects, share proofs of concept (PoC), and collaborate with clients.
 
 ## Features
 
-- **Project Management**: Create, manage, and track penetration testing projects
-- **Vulnerability Tracking**: Document and track vulnerabilities with severity ratings
-- **Client Collaboration**: Share findings with clients securely
-- **Role-Based Access**: Different views for pentesters, clients, and administrators
-- **Modern UI**: Clean, intuitive user interface inspired by Notion
+- **User Management**: Support for multiple user roles (Super Admin, Admin, Pentester, Client, User)
+- **Project Management**: Create and manage penetration testing projects
+- **PoC Management**: Share, execute, and document proof of concept exploits
+- **Vulnerability Tracking**: Document and track vulnerabilities found during testing
+- **Client Access**: Allow clients to view reports and comment on findings
+- **Markdown Support**: Rich markdown editing with code highlighting for documentation
+- **Comments System**: Discuss findings and PoCs with team members and clients
+- **Microsoft SSO**: Authentication via Microsoft OAuth (frontend implemented, backend to be completed)
+- **Role-Based Access Control**: Granular access control based on user roles
 
-## Architecture
+## Tech Stack
 
-- **Backend**: FastAPI (Python) RESTful API
-- **Frontend**: Next.js (React) with Tailwind CSS
+- **Backend**: FastAPI with SQLAlchemy ORM
+- **Frontend**: Next.js with TypeScript
 - **Database**: PostgreSQL
-- **Authentication**: JWT-based authentication
+- **Authentication**: JWT tokens + Microsoft OAuth
+- **Styling**: Tailwind CSS
+- **Documentation**: Markdown with code highlighting
 
 ## Getting Started
 
 ### Prerequisites
 
-- Docker
-- Git
+- Python 3.8+
+- Node.js 18+
+- PostgreSQL
+- Docker (optional)
 
-### Installation
+### Installation with Docker
 
-1. Clone the repository
-   ```bash
-   git clone https://github.com/yourusername/p0cit.git
-   cd p0cit
-   ```
-
-2. Run the setup script
-   ```bash
-   # If docker-compose is available:
-   ./start.sh
-   
-   # Alternative method using Docker commands directly (for WSL or if docker-compose is not available):
-   ./docker-start.sh
-   ```
-
-The script will:
-- Build and start the backend API (FastAPI)
-- Build and start the frontend (Next.js)
-- Set up the PostgreSQL database
-- Configure all the necessary connections
-
-### Accessing the Application
-
-After starting the application, you can access:
-
-- **Frontend**: http://localhost:3000
-- **Backend API**: http://localhost:8001
-- **API Documentation**: http://localhost:8001/api/docs
-
-### Stopping the Application
-
-To stop the application:
+The easiest way to get started is to use Docker Compose:
 
 ```bash
-# If using docker-compose:
-docker-compose down
+# Clone the repository
+git clone https://github.com/yourusername/p0cit.git
+cd p0cit
 
-# Alternative method using Docker commands directly:
-./docker-stop.sh
+# Start the application with Docker Compose
+docker-compose up -d
 ```
 
-### Default Login
+### Manual Installation
 
-Use the following credentials for initial access:
-- Username: `admin`
-- Password: `admin`
+#### Backend
 
-You can create additional users through the admin interface.
-
-## Development
-
-### Project Structure
-```
-p0cit/
-├── app/               # Backend code (FastAPI)
-├── frontend/          # Frontend code (Next.js)
-├── docker-compose.yml # Docker configuration
-├── Dockerfile         # Backend Docker configuration
-└── start.sh           # Startup script
-```
-
-### Development Workflow
-
-1. Start the services in development mode:
-   ```bash
-   docker-compose up
-   ```
-
-2. Make changes to the backend code in the `app/` directory
-3. Make changes to the frontend code in the `frontend/` directory
-4. The development servers will automatically reload with your changes
-
-## Database Management
-
-### Reset Database
 ```bash
-./reset_db.sh
+# Create a virtual environment
+python -m venv env
+source env/bin/activate  # On Windows: env\Scripts\activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Set up environment variables
+cp .env.example .env
+# Edit .env file with your configuration
+
+# Initialize the database
+python -m app.init_db
+
+# Create a super admin user
+python -m app.create_super_admin <username> <email> <password>
+
+# Start the backend server
+uvicorn app.main:app --reload
 ```
 
-### Migrate Database
+#### Frontend
+
 ```bash
-./migrate_db.sh
+# Navigate to frontend directory
+cd frontend
+
+# Install dependencies
+npm install
+
+# Set up environment variables
+cp .env.example .env.local
+# Edit .env.local file with your configuration
+
+# Start the development server
+npm run dev
 ```
 
-### Create Admin User
-```bash
-./create_admin.sh --interactive
+## Setting Up Microsoft OAuth (Optional)
+
+To enable Microsoft authentication:
+
+1. Register a new application in the [Microsoft Azure Portal](https://portal.azure.com/#blade/Microsoft_AAD_RegisteredApps/ApplicationsListBlade)
+2. Add redirect URI: `http://localhost:3000/auth/microsoft/callback`
+3. Note your Application (client) ID and create a client secret
+4. Update these values in your `.env` file:
+
+```
+MICROSOFT_CLIENT_ID=your_client_id
+MICROSOFT_CLIENT_SECRET=your_client_secret
+MICROSOFT_TENANT_ID=your_tenant_id
 ```
 
-### Create Client User
-```bash
-./create_client.sh --interactive
-```
+## User Roles
+
+- **SUPER_ADMIN**: Full access to all features, user management, and system settings
+- **ADMIN**: Manage projects, users, and platform settings
+- **PENTESTER**: Create and manage pentest reports, vulnerabilities, and PoCs
+- **CLIENT**: View assigned projects, reports, and add comments
+- **USER**: Basic access to view allowed resources
+
+## API Documentation
+
+Once the application is running, you can access the API documentation at:
+
+- Swagger UI: http://localhost:8000/docs
+- ReDoc: http://localhost:8000/redoc
+
+## Development Notes
+
+### Authentication Flow
+
+The application uses JWT tokens for authentication. The token is stored in cookies for frontend access. The workflow is:
+
+1. User logs in via username/password or Microsoft OAuth
+2. Backend validates credentials and issues a JWT token
+3. Token is stored in cookies and included in subsequent requests
+4. Backend validates the token for protected routes
+
+### Comments Feature
+
+The platform supports comments on pentests and PoCs. This allows discussion between team members and clients about findings and vulnerabilities.
+
+### Role-Based Access Control
+
+Access to resources is controlled by the user's role. The frontend and backend both implement checks to ensure users can only access resources appropriate for their role.
 
 ## License
 
-[MIT License](LICENSE) 
+[MIT License](LICENSE)
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request. 

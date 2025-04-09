@@ -1,9 +1,13 @@
 # app/api/endpoints/__init__.py
-from app.api.endpoints.users import router as users
-from app.api.endpoints.projects import router as projects
-from app.api.endpoints.vulnerabilities import router as vulnerabilities
-from app.api.endpoints.admin import router as admin
-from app.api.endpoints.auth import router as auth
-from app.api.endpoints.dashboard import router as dashboard
+from fastapi import APIRouter
+from app.api.endpoints import users, auth, projects, vulnerabilities, pentesters, admin, dashboard, mission_comments
 
-__all__ = ["users", "projects", "vulnerabilities", "admin", "dashboard"] 
+api_router = APIRouter()
+api_router.include_router(auth.router, tags=["auth"])
+api_router.include_router(users.router, tags=["users"])
+api_router.include_router(projects.router, tags=["projects"])
+api_router.include_router(vulnerabilities.router, tags=["vulnerabilities"])
+api_router.include_router(pentesters.router, tags=["pentesters"])
+api_router.include_router(admin.router, tags=["admin"])
+api_router.include_router(dashboard.router, tags=["dashboard"])
+api_router.include_router(mission_comments.router, tags=["comments"]) 

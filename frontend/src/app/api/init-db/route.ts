@@ -1,41 +1,46 @@
 import { NextResponse } from 'next/server';
 import axios from 'axios';
-import { getBackendURL } from '@/lib/api';
-import { loginToBackend } from '@/lib/api/loginUtil';
+import { cookies } from 'next/headers';
 
+// This endpoint is used to initialize the database with default data
 export async function POST(request: Request) {
     try {
-        // First, login to get a valid token
-        const authResponse = await loginToBackend();
-        const token = authResponse.access_token;
+        // Get the authorization cookie or header from the request
+        let token = '';
 
-        if (!token) {
-            throw new Error('Failed to get authentication token');
+        // Try to get from cookies first
+        const cookieStore = cookies();
+        const authCookie = cookieStore.get('token') || cookieStore.get('access_token');
+        if (authCookie) {
+            token = authCookie.value;
+        } else {
+            // Try to get from authorization header
+            const authHeader = request.headers.get('authorization');
+            if (authHeader && authHeader.startsWith('Bearer ')) {
+                token = authHeader.substring(7);
+            }
         }
 
-        console.log('Successfully obtained token for init-db');
+        // Construct the API URL
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001/api';
 
-        // Call the backend to initialize the database
-        const backendURL = getBackendURL();
-        console.log('Initializing database at:', `${backendURL}/api/admin/init-db`);
-
-        const response = await axios.post(`${backendURL}/api/admin/init-db`, {
-            recreate_tables: false
-        }, {
-            headers: {
-                Authorization: `Bearer ${token}`
+        // Call the backend init endpoint
+        const response = await axios.post(
+            `${apiUrl}/admin/init-db`,
+            {},
+            {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
             }
-        });
+        );
 
-        return NextResponse.json({
-            message: "Database initialized with default users and project",
-            details: response.data
-        });
+        return NextResponse.json({ success: true });
     } catch (error: any) {
-        console.error('Error initializing database:', error);
+        console.error('Failed to initialize database:', error);
         return NextResponse.json(
             { error: error.response?.data?.detail || 'Failed to initialize database' },
-            { status: error.response?.status || 500 }
+            { status: 500 }
         );
     }
 }

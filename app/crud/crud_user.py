@@ -160,6 +160,14 @@ def deactivate_user(db: Session, user_id: UUID) -> Optional[User]:
     """Deactivate a user (instead of deleting)"""
     return update_user(db, user_id, {"is_active": False})
 
+def update_last_login(db: Session, user: User) -> User:
+    """Update the last login timestamp for a user"""
+    user.last_login = datetime.utcnow()
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
 class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
     def get_by_email(self, db: Session, *, email: str) -> Optional[User]:
         return db.query(User).filter(User.email == email).first()

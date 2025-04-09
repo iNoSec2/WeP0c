@@ -1,28 +1,33 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { useRouter } from 'next/navigation'
 import { Loading } from '@/components/ui/loading'
 import { useToast } from '@/components/ui/use-toast'
-import axios from 'axios'
-import { Database } from 'lucide-react'
+import { LogIn } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 
 export default function LoginPage() {
     const router = useRouter()
     const { toast } = useToast()
-    const { login, isLoading: authLoading, error: authError } = useAuth()
+    const { login, isLoading: authLoading, error: authError, user } = useAuth()
     const [isLoading, setIsLoading] = useState(false)
-    const [isInitializing, setIsInitializing] = useState(false)
     const [formData, setFormData] = useState({
         email: '',
         password: '',
     })
 
+    // Check if already authenticated, but don't redirect to avoid loops
+    // The AuthContext will handle redirecting from login to dashboard
+    useEffect(() => {
+        console.log('Login page mounted, user state:', !!user);
+    }, [user])
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         setIsLoading(true)
+        console.log('Login form submitted with email:', formData.email);
 
         try {
             // Use the AuthContext login function
@@ -34,38 +39,19 @@ export default function LoginPage() {
                 description: 'Welcome back!',
             });
 
-            // The redirect is handled in the AuthContext
+            // Login function in AuthContext will handle redirection
+            console.log('Login successful, AuthContext will handle redirection');
         } catch (error) {
             console.error('Login error:', error);
 
             // Show error message
             toast({
                 title: 'Login failed',
-                description: 'Invalid email or password. Please try again.',
+                description: 'Please check your credentials and try again.',
                 variant: 'destructive',
             });
         } finally {
             setIsLoading(false)
-        }
-    }
-
-    const handleInitializeDatabase = async () => {
-        try {
-            setIsInitializing(true)
-            const response = await axios.post('/api/init-db')
-
-            toast({
-                title: 'Database initialized',
-                description: 'Default users and project have been created successfully.',
-            })
-        } catch (error: any) {
-            toast({
-                title: 'Error',
-                description: error.response?.data?.error || 'Failed to initialize database',
-                variant: 'destructive',
-            })
-        } finally {
-            setIsInitializing(false)
         }
     }
 
@@ -168,20 +154,29 @@ export default function LoginPage() {
                     </motion.div>
                 </form>
 
-                {/* Admin tools hidden in production */}
-                {process.env.NODE_ENV === 'development' && (
-                    <div className="mt-6 pt-6 border-t border-gray-200">
+                <div className="mt-6">
+                    <div className="relative">
+                        <div className="absolute inset-0 flex items-center">
+                            <div className="w-full border-t border-gray-300"></div>
+                        </div>
+                        <div className="relative flex justify-center text-sm">
+                            <span className="px-2 bg-white text-gray-500">
+                                Or continue with
+                            </span>
+                        </div>
+                    </div>
+
+                    <div className="mt-6">
                         <button
                             type="button"
-                            onClick={handleInitializeDatabase}
-                            disabled={isInitializing}
-                            className="mt-4 w-full flex justify-center items-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none"
+                            className="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+                            onClick={() => window.location.href = '/api/auth/microsoft'}
                         >
-                            <Database className="h-4 w-4 text-gray-500 mr-2" />
-                            {isInitializing ? 'Initializing Database...' : 'Initialize Database'}
+                            <LogIn className="h-5 w-5 mr-2 text-blue-600" />
+                            Sign in with Microsoft
                         </button>
                     </div>
-                )}
+                </div>
             </motion.div>
         </div>
     )

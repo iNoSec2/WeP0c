@@ -13,3 +13,4 @@ markdown2>=2.4.10
 bcrypt==3.2.2
 email-validator>=2.1.0
 pydantic-settings>=2.0.0 
+aiohttp==3.11.16

@@ -1,17 +1,19 @@
 "use client";
 
-import React, { useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import React from "react";
+import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useToast } from "@/components/ui/use-toast";
 import DashboardLayout from "@/components/DashboardLayout";
 import { PocDisplay } from "@/components/PocDisplay";
 import WelcomeMessage from "@/components/WelcomeMessage";
+import { RoleGuard } from "@/components/auth/RoleGuard";
+import { useAuth } from "@/contexts/AuthContext";
+import { Role } from "@/types/user";
 import {
     Users,
     FolderKanban,
@@ -21,6 +23,11 @@ import {
     CheckCircle,
     Plus,
     ArrowRight,
+    Settings,
+    UserCog,
+    FileText,
+    Calendar,
+    Clock,
 } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -41,8 +48,8 @@ interface DashboardStats {
 }
 
 export default function DashboardPage() {
-    const { toast } = useToast();
-    const [activeTab, setActiveTab] = useState("overview");
+    const { user } = useAuth();
+    const [activeTab, setActiveTab] = React.useState("overview");
 
     const { data: stats, isLoading: statsLoading } = useQuery<DashboardStats>({
         queryKey: ["dashboard-stats"],
@@ -87,33 +94,44 @@ export default function DashboardPage() {
 
                 <div className="flex items-center justify-between">
                     <h1 className="text-3xl font-bold">Dashboard</h1>
+
+                    {/* Role-based action buttons */}
                     <div className="flex gap-2">
-                        <Button asChild>
-                            <Link href="/vulnerabilities/create">
-                                <Plus className="w-4 h-4 mr-2" />
-                                New Vulnerability
-                            </Link>
-                        </Button>
-                        <Button asChild variant="outline">
-                            <Link href="/projects/create">
-                                <Plus className="w-4 h-4 mr-2" />
-                                New Project
-                            </Link>
-                        </Button>
+                        <RoleGuard allowedRoles={[Role.SUPER_ADMIN, Role.ADMIN, Role.PENTESTER]}>
+                            <Button asChild>
+                                <Link href="/vulnerabilities/create">
+                                    <Plus className="w-4 h-4 mr-2" />
+                                    New Vulnerability
+                                </Link>
+                            </Button>
+                        </RoleGuard>
+
+                        <RoleGuard allowedRoles={[Role.SUPER_ADMIN, Role.ADMIN]}>
+                            <Button asChild variant="outline">
+                                <Link href="/projects/create">
+                                    <Plus className="w-4 h-4 mr-2" />
+                                    New Project
+                                </Link>
+                            </Button>
+                        </RoleGuard>
                     </div>
                 </div>
 
+                {/* Stats Cards - Different cards shown based on role */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <Card>
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Total Users</CardTitle>
-                            <Users className="h-4 w-4 text-muted-foreground" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold">{stats?.totalUsers || 0}</div>
-                            <Progress value={100} className="mt-2" />
-                        </CardContent>
-                    </Card>
+                    <RoleGuard allowedRoles={[Role.SUPER_ADMIN, Role.ADMIN]}>
+                        <Card>
+                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                <CardTitle className="text-sm font-medium">Total Users</CardTitle>
+                                <Users className="h-4 w-4 text-muted-foreground" />
+                            </CardHeader>
+                            <CardContent>
+                                <div className="text-2xl font-bold">{stats?.totalUsers || 0}</div>
+                                <Progress value={100} className="mt-2" />
+                            </CardContent>
+                        </Card>
+                    </RoleGuard>
+
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle className="text-sm font-medium">Total Projects</CardTitle>
@@ -124,16 +142,20 @@ export default function DashboardPage() {
                             <Progress value={100} className="mt-2" />
                         </CardContent>
                     </Card>
-                    <Card>
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Total Pentests</CardTitle>
-                            <Shield className="h-4 w-4 text-muted-foreground" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold">{stats?.totalPentests || 0}</div>
-                            <Progress value={100} className="mt-2" />
-                        </CardContent>
-                    </Card>
+
+                    <RoleGuard allowedRoles={[Role.SUPER_ADMIN, Role.ADMIN, Role.PENTESTER, Role.CLIENT]}>
+                        <Card>
+                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                <CardTitle className="text-sm font-medium">Total Pentests</CardTitle>
+                                <Shield className="h-4 w-4 text-muted-foreground" />
+                            </CardHeader>
+                            <CardContent>
+                                <div className="text-2xl font-bold">{stats?.totalPentests || 0}</div>
+                                <Progress value={100} className="mt-2" />
+                            </CardContent>
+                        </Card>
+                    </RoleGuard>
+
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle className="text-sm font-medium">Critical Vulnerabilities</CardTitle>
@@ -145,6 +167,46 @@ export default function DashboardPage() {
                         </CardContent>
                     </Card>
                 </div>
+
+                {/* Role-specific Quick Links */}
+                <RoleGuard allowedRoles={[Role.SUPER_ADMIN, Role.ADMIN, Role.PENTESTER]}>
+                    <Card className="mb-6">
+                        <CardHeader>
+                            <CardTitle>Quick Links</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                <RoleGuard allowedRoles={[Role.SUPER_ADMIN, Role.ADMIN]}>
+                                    <Link href="/admin/users" className="flex flex-col items-center p-4 border rounded-lg hover:bg-gray-50 transition-colors">
+                                        <UserCog className="h-8 w-8 mb-2 text-primary" />
+                                        <span>User Management</span>
+                                    </Link>
+                                </RoleGuard>
+
+                                <RoleGuard allowedRoles={[Role.SUPER_ADMIN, Role.ADMIN, Role.PENTESTER]}>
+                                    <Link href="/pentests/reports" className="flex flex-col items-center p-4 border rounded-lg hover:bg-gray-50 transition-colors">
+                                        <FileText className="h-8 w-8 mb-2 text-primary" />
+                                        <span>Reports</span>
+                                    </Link>
+                                </RoleGuard>
+
+                                <RoleGuard allowedRoles={[Role.SUPER_ADMIN, Role.ADMIN, Role.PENTESTER]}>
+                                    <Link href="/pentests/calendar" className="flex flex-col items-center p-4 border rounded-lg hover:bg-gray-50 transition-colors">
+                                        <Calendar className="h-8 w-8 mb-2 text-primary" />
+                                        <span>Schedule</span>
+                                    </Link>
+                                </RoleGuard>
+
+                                <RoleGuard allowedRoles={[Role.SUPER_ADMIN, Role.ADMIN, Role.PENTESTER]}>
+                                    <Link href="/pentests/timesheets" className="flex flex-col items-center p-4 border rounded-lg hover:bg-gray-50 transition-colors">
+                                        <Clock className="h-8 w-8 mb-2 text-primary" />
+                                        <span>Timesheets</span>
+                                    </Link>
+                                </RoleGuard>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </RoleGuard>
 
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
                     <TabsList>

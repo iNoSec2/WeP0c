@@ -10,9 +10,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { ShieldAlert } from "lucide-react";
+import { MicrosoftLogin } from "@/components/auth/MicrosoftLogin";
+import { Separator } from "@/components/ui/separator";
+import { UserLogin } from "@/types/user";
 
 interface LoginFormValues {
-    username: string;
+    email: string;
     password: string;
 }
 
@@ -45,6 +48,15 @@ export default function LoginPage() {
         }
     };
 
+    const handleMicrosoftSuccess = () => {
+        // Redirect will happen via the auth hook after token is set
+        router.push("/dashboard");
+    };
+
+    const handleMicrosoftError = (error: Error) => {
+        setError(`Microsoft login failed: ${error.message}`);
+    };
+
     return (
         <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-950 p-4">
             <Card className="w-full max-w-md">
@@ -57,18 +69,29 @@ export default function LoginPage() {
                         Enter your credentials to access your account
                     </CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="space-y-4">
+                    <MicrosoftLogin
+                        onSuccess={handleMicrosoftSuccess}
+                        onError={handleMicrosoftError}
+                    />
+
+                    <div className="flex items-center space-x-2">
+                        <Separator className="flex-grow" />
+                        <span className="text-xs text-muted-foreground">OR</span>
+                        <Separator className="flex-grow" />
+                    </div>
+
                     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
                         <div className="space-y-2">
-                            <Label htmlFor="username">Email</Label>
+                            <Label htmlFor="email">Email</Label>
                             <Input
-                                id="username"
+                                id="email"
                                 type="email"
                                 placeholder="Enter your email"
-                                {...register("username", { required: "Email is required" })}
+                                {...register("email", { required: "Email is required" })}
                             />
-                            {errors.username && (
-                                <p className="text-sm text-red-500">{errors.username.message}</p>
+                            {errors.email && (
+                                <p className="text-sm text-red-500">{errors.email.message}</p>
                             )}
                         </div>
                         <div className="space-y-2">

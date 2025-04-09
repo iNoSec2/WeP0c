@@ -55,4 +55,37 @@ def get_by_user(
         .offset(skip)
         .limit(limit)
         .all()
-    ) 
+    )
+
+# Wrapper functions that are expected by the endpoints
+def create_comment(db: Session, comment: MissionCommentCreate, mission_id: str, author_id: str) -> MissionComment:
+    # Set mission_id and user_id from parameters
+    comment_dict = comment.dict()
+    comment_dict["mission_id"] = mission_id
+    comment_dict["user_id"] = author_id
+    
+    # Create comment object
+    db_obj = MissionComment(**comment_dict)
+    db.add(db_obj)
+    db.commit()
+    db.refresh(db_obj)
+    return db_obj
+
+def get_comment(db: Session, comment_id: str) -> Optional[MissionComment]:
+    return get(db, comment_id=comment_id)
+
+def get_comments_by_mission(db: Session, mission_id: str, poc_id: str = None) -> List[MissionComment]:
+    query = db.query(MissionComment).filter(MissionComment.mission_id == mission_id)
+    
+    # Add POC filter if provided
+    if poc_id:
+        query = query.filter(MissionComment.poc_id == poc_id)
+        
+    return query.order_by(MissionComment.created_at.desc()).all()
+
+def update_comment(db: Session, comment_id: str, comment_data: MissionCommentUpdate) -> MissionComment:
+    db_obj = get(db, comment_id=comment_id)
+    return update(db, db_obj=db_obj, obj_in=comment_data)
+
+def delete_comment(db: Session, comment_id: str) -> MissionComment:
+    return remove(db, id=comment_id) 

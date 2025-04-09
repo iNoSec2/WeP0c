@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, EmailStr, constr
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, ForwardRef
 from uuid import UUID
 from datetime import datetime
 import enum
@@ -17,6 +17,12 @@ class AvailabilityStatus(str, enum.Enum):
     BUSY = "busy"
     UNAVAILABLE = "unavailable"
     ON_LEAVE = "on_leave"
+
+# Forward references for circular dependencies
+MissionRef = ForwardRef('Mission')
+MissionCommentRef = ForwardRef('MissionComment')
+MissionAttachmentRef = ForwardRef('MissionAttachment')
+ReportRef = ForwardRef('Report')
 
 class SpecialityBase(BaseModel):
     name: str
@@ -196,13 +202,21 @@ class UserResponse(UserProfile):
     pass
 
 class UserWithRelations(User):
-    missions: List["Mission"] = []
+    missions: List[MissionRef] = []
     specialities: List[Speciality] = []
-    mission_comments: List["MissionComment"] = []
-    mission_attachments: List["MissionAttachment"] = []
-    authored_reports: List["Report"] = []
-    reviewed_reports: List["Report"] = []
+    mission_comments: List[MissionCommentRef] = []
+    mission_attachments: List[MissionAttachmentRef] = []
+    authored_reports: List[ReportRef] = []
+    reviewed_reports: List[ReportRef] = []
     pentester_profile: Optional[PentesterProfile] = None
     
     class Config:
         from_attributes = True
+
+# Update forward references 
+from app.schemas.mission import Mission
+from app.schemas.mission_comment import MissionComment
+from app.schemas.mission_attachment import MissionAttachment
+from app.schemas.report import Report
+
+UserWithRelations.update_forward_refs()

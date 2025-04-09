@@ -1,76 +1,99 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
-import { useAuth } from '@/hooks/useAuth'
+import { useAuth } from '@/contexts/AuthContext'
 import { Role } from '@/types/user'
 import { LoadingSpinner } from '@/components/ui/loading'
 
-interface RouteConfig {
-    path: string
-    roles: Role[]
-}
-
-// Define route access configuration
-const routeAccess: RouteConfig[] = [
-    { path: '/dashboard', roles: [Role.SUPER_ADMIN, Role.ADMIN, Role.PENTESTER, Role.CLIENT, Role.USER] },
-    { path: '/admin', roles: [Role.SUPER_ADMIN, Role.ADMIN] },
-    { path: '/projects', roles: [Role.SUPER_ADMIN, Role.ADMIN, Role.PENTESTER, Role.CLIENT] },
-    { path: '/vulnerabilities', roles: [Role.SUPER_ADMIN, Role.ADMIN, Role.PENTESTER] },
-    { path: '/pentests', roles: [Role.SUPER_ADMIN, Role.ADMIN, Role.PENTESTER] },
-    { path: '/client', roles: [Role.SUPER_ADMIN, Role.ADMIN, Role.CLIENT] },
-    { path: '/users', roles: [Role.SUPER_ADMIN, Role.ADMIN] },
-    { path: '/settings', roles: [Role.SUPER_ADMIN, Role.ADMIN, Role.PENTESTER, Role.CLIENT, Role.USER] },
-    // Add pentester-specific routes
-    { path: '/pentests/my-assignments', roles: [Role.PENTESTER] },
-    { path: '/pentests/reports', roles: [Role.SUPER_ADMIN, Role.ADMIN, Role.PENTESTER] },
-    { path: '/pentests/tools', roles: [Role.SUPER_ADMIN, Role.ADMIN, Role.PENTESTER] },
-    { path: '/pentests/methodology', roles: [Role.SUPER_ADMIN, Role.ADMIN, Role.PENTESTER] },
-    { path: '/pentests/templates', roles: [Role.SUPER_ADMIN, Role.ADMIN, Role.PENTESTER] },
-    { path: '/pentests/specialities', roles: [Role.SUPER_ADMIN, Role.ADMIN, Role.PENTESTER] },
-    { path: '/pentests/calendar', roles: [Role.SUPER_ADMIN, Role.ADMIN, Role.PENTESTER] },
-    { path: '/pentests/timesheets', roles: [Role.SUPER_ADMIN, Role.ADMIN, Role.PENTESTER] },
-]
-
 // Public routes that don't require authentication
-const publicRoutes = ['/', '/login', '/register', '/forgot-password', '/reset-password']
+const PUBLIC_ROUTES = [
+    '/',
+    '/login',
+    '/register',
+    '/forgot-password',
+    '/reset-password',
+    '/auth/login',
+    '/auth/register',
+    '/auth/microsoft/callback'
+];
+
+// Role-based route access configuration
+const ROUTE_ACCESS_CONFIG = {
+    '/dashboard': [Role.SUPER_ADMIN, Role.ADMIN, Role.PENTESTER, Role.CLIENT, Role.USER],
+    '/admin': [Role.SUPER_ADMIN, Role.ADMIN],
+    '/admin/users': [Role.SUPER_ADMIN],
+    '/users': [Role.SUPER_ADMIN],
+    '/user-management': [Role.SUPER_ADMIN],
+    '/projects': [Role.SUPER_ADMIN, Role.ADMIN, Role.PENTESTER, Role.CLIENT],
+    '/projects/create': [Role.SUPER_ADMIN, Role.ADMIN],
+    '/pentests': [Role.SUPER_ADMIN, Role.ADMIN, Role.PENTESTER, Role.CLIENT],
+    '/pentests/my-assignments': [Role.SUPER_ADMIN, Role.ADMIN, Role.PENTESTER],
+    '/pentests/reports': [Role.SUPER_ADMIN, Role.ADMIN, Role.PENTESTER, Role.CLIENT],
+    '/pentests/tools': [Role.SUPER_ADMIN, Role.ADMIN, Role.PENTESTER],
+    '/pentests/methodology': [Role.SUPER_ADMIN, Role.ADMIN, Role.PENTESTER],
+    '/pentests/templates': [Role.SUPER_ADMIN, Role.ADMIN, Role.PENTESTER],
+    '/pentests/specialities': [Role.SUPER_ADMIN, Role.ADMIN],
+    '/pentests/calendar': [Role.SUPER_ADMIN, Role.ADMIN, Role.PENTESTER],
+    '/pentests/timesheets': [Role.SUPER_ADMIN, Role.ADMIN, Role.PENTESTER],
+    '/client': [Role.SUPER_ADMIN, Role.ADMIN, Role.CLIENT],
+    '/vulnerabilities': [Role.SUPER_ADMIN, Role.ADMIN, Role.PENTESTER, Role.CLIENT],
+    '/settings': [Role.SUPER_ADMIN, Role.ADMIN, Role.PENTESTER, Role.CLIENT, Role.USER],
+};
 
 export function RouteGuard({ children }: { children: React.ReactNode }) {
     const { user, isLoading } = useAuth()
     const router = useRouter()
     const pathname = usePathname()
+    const [authorized, setAuthorized] = useState(false)
 
     useEffect(() => {
-        // Function to check if the current route is protected
+        // Function to check if the current route is protected and authorized
         const checkRouteAccess = () => {
             // Allow access to public routes
-            if (publicRoutes.includes(pathname)) {
+            if (PUBLIC_ROUTES.some(route => pathname === route || pathname.startsWith(`${route}/`))) {
+                setAuthorized(true)
                 return true
             }
 
             // If user is not logged in and trying to access protected route
-            if (!user && !publicRoutes.includes(pathname)) {
+            if (!user) {
                 router.push('/login')
+                setAuthorized(false)
                 return false
             }
 
-            // Find route configuration for current path
-            const routeConfig = routeAccess.find(route =>
-                pathname.startsWith(route.path)
-            )
+            // Find the most specific route configuration that matches the current path
+            const matchingRoutes = Object.entries(ROUTE_ACCESS_CONFIG)
+                .filter(([route]) => pathname.startsWith(route))
+                .sort((a, b) => b[0].length - a[0].length); // Sort by route length (most specific first)
 
-            // If route is not configured, deny access
-            if (!routeConfig) {
-                router.push('/unauthorized')
+            const matchedRoute = matchingRoutes[0];
+
+            // If no route configuration found, default to dashboard
+            if (!matchedRoute) {
+                router.push('/dashboard')
+                setAuthorized(false)
                 return false
             }
 
-            // Check if user's role is allowed
-            if (!routeConfig.roles.includes(user?.role as Role)) {
-                router.push('/unauthorized')
+            const [_, allowedRoles] = matchedRoute;
+
+            // Super admin can access everything
+            if (user.role === Role.SUPER_ADMIN) {
+                setAuthorized(true)
+                return true
+            }
+
+            // Check if user's role is allowed for this route
+            if (!allowedRoles.includes(user.role)) {
+                router.push('/dashboard')
+                setAuthorized(false)
                 return false
             }
 
+            // User is authorized to access this route
+            setAuthorized(true)
             return true
         }
 
@@ -81,14 +104,22 @@ export function RouteGuard({ children }: { children: React.ReactNode }) {
 
     // Show loading state while checking authentication
     if (isLoading) {
-        return <LoadingSpinner />
+        return (
+            <div className="flex h-screen items-center justify-center">
+                <LoadingSpinner className="w-8 h-8" />
+            </div>
+        )
     }
 
-    // If on public route or user has access, render children
-    if (publicRoutes.includes(pathname) || user) {
+    // If user is authorized (or on public route), render children
+    if (authorized) {
         return <>{children}</>
     }
 
-    // Don't render anything while redirecting
-    return null
+    // Show loading while unauthorized and redirecting
+    return (
+        <div className="flex h-screen items-center justify-center">
+            <LoadingSpinner className="w-8 h-8" />
+        </div>
+    )
 } 

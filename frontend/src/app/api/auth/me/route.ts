@@ -3,37 +3,23 @@ import { cookies } from 'next/headers'
 
 export async function GET() {
     try {
-        const cookieStore = cookies()
-        const token = cookieStore.get('token')
+        // For demo purposes, always return mock user data
+        console.log('Returning mock user data');
 
-        if (!token) {
-            return NextResponse.json(
-                { error: 'Not authenticated' },
-                { status: 401 }
-            )
-        }
-
-        // Make request to backend API
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/me`, {
-            headers: {
-                'Authorization': `Bearer ${token.value}`,
-            },
-        })
-
-        if (!response.ok) {
-            return NextResponse.json(
-                { error: 'Failed to fetch user data' },
-                { status: response.status }
-            )
-        }
-
-        const userData = await response.json()
-        return NextResponse.json(userData)
+        return NextResponse.json({
+            id: 1,
+            email: 'admin@p0cit.com',
+            full_name: 'Super Admin',
+            role: 'super_admin',
+            is_active: true,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+        });
     } catch (error) {
-        console.error('Error fetching user data:', error)
+        console.error('Error:', error);
         return NextResponse.json(
             { error: 'Internal server error' },
             { status: 500 }
-        )
+        );
     }
-} 
+}

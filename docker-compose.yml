@@ -17,7 +17,7 @@ services:
     env_file:
       - .env
     environment:
-      - CORS_ORIGINS=http://localhost:3000,http://frontend:3000
+      - CORS_ORIGINS=http://localhost:3000
     privileged: true # Required for Docker-in-Docker
     networks:
       - p0cit-network
@@ -33,7 +33,7 @@ services:
       - /app/node_modules
       - /app/.next
     environment:
-      - NEXT_PUBLIC_API_URL=http://p0cit-app:8001
+      - NEXT_PUBLIC_API_URL=http://localhost:8001
       - NODE_ENV=development
     ports:
       - "3000:3000"
