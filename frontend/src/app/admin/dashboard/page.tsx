@@ -22,65 +22,12 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 
 export default function AdminDashboardPage() {
-  const { data: stats, isLoading } = useQuery({
+  const { data: stats, isLoading, error } = useQuery({
     queryKey: ['admin-stats'],
     queryFn: async () => {
-      try {
-        const response = await axios.get('/api/admin/stats');
-        return response.data;
-      } catch (error) {
-        console.error('Error fetching admin stats:', error);
-        // Return mock data for development
-        return {
-          users: {
-            total: 24,
-            active: 20,
-            by_role: {
-              super_admin: 1,
-              admin: 3,
-              pentester: 8,
-              client: 12
-            }
-          },
-          projects: {
-            total: 15,
-            active: 8,
-            by_status: {
-              active: 8,
-              completed: 5,
-              planned: 2
-            }
-          },
-          vulnerabilities: {
-            total: 87,
-            critical: 12,
-            by_severity: {
-              critical: 12,
-              high: 25,
-              medium: 30,
-              low: 20
-            }
-          },
-          recent_activity: [
-            {
-              action: 'New user registered',
-              user: 'john.doe@example.com',
-              timestamp: new Date().toISOString()
-            },
-            {
-              action: 'Project completed',
-              user: 'pentester@example.com',
-              timestamp: new Date(Date.now() - 3600000).toISOString()
-            },
-            {
-              action: 'Critical vulnerability reported',
-              user: 'security@example.com',
-              timestamp: new Date(Date.now() - 7200000).toISOString()
-            }
-          ]
-        };
-      }
-    },
+      const response = await axios.get('/api/admin/stats');
+      return response.data;
+    }
   });
 
   if (isLoading) {
@@ -118,6 +65,44 @@ export default function AdminDashboardPage() {
                   <div className="h-16 w-16 bg-muted rounded-full animate-pulse"></div>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <DashboardLayout>
+        <div className="container p-6 mx-auto">
+          <div className="space-y-6">
+            <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+
+            <div className="rounded-lg border border-destructive bg-destructive/10 p-6 text-destructive">
+              <h2 className="text-lg font-semibold">Error loading dashboard data</h2>
+              <p>There was a problem loading the dashboard statistics. Please try again later or contact support.</p>
+            </div>
+
+            <div className="flex justify-between mt-6">
+              <Button asChild>
+                <Link href="/admin/users">
+                  <Users className="mr-2 h-4 w-4" />
+                  Manage Users
+                </Link>
+              </Button>
+              <Button asChild>
+                <Link href="/admin/projects">
+                  <FileText className="mr-2 h-4 w-4" />
+                  Manage Projects
+                </Link>
+              </Button>
+              <Button asChild>
+                <Link href="/admin/settings">
+                  <Settings className="mr-2 h-4 w-4" />
+                  System Settings
+                </Link>
+              </Button>
             </div>
           </div>
         </div>

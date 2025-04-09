@@ -29,32 +29,32 @@ export interface CreatePentesterData {
 
 export const usersService = {
     getPentesters: async (): Promise<PentesterUser[]> => {
-        const response = await apiClient.get("/users/pentesters");
+        const response = await apiClient.get("/api/users/pentesters");
         return response.data;
     },
 
     getClients: async (): Promise<User[]> => {
-        const response = await apiClient.get("/users/clients");
+        const response = await apiClient.get("/api/users/clients");
         return response.data;
     },
 
     createClient: async (data: CreateClientData): Promise<User> => {
-        const response = await apiClient.post("/users/clients", data);
+        const response = await apiClient.post("/api/users/clients", data);
         return response.data;
     },
 
     createPentester: async (data: CreatePentesterData): Promise<PentesterUser> => {
-        const response = await apiClient.post("/users/pentesters", data);
+        const response = await apiClient.post("/api/users/pentesters", data);
         return response.data;
     },
 
     addSpeciality: async (userId: string, speciality: string): Promise<PentesterUser> => {
-        const response = await apiClient.post(`/users/specialities/${userId}/${speciality}`);
+        const response = await apiClient.post(`/api/users/specialities/${userId}/${speciality}`);
         return response.data;
     },
 
     removeSpeciality: async (userId: string, speciality: string): Promise<PentesterUser> => {
-        const response = await apiClient.delete(`/users/specialities/${userId}/${speciality}`);
+        const response = await apiClient.delete(`/api/users/specialities/${userId}/${speciality}`);
         return response.data;
     },
 }; 

@@ -1,108 +1,48 @@
 import axios from "axios";
-import { getBackendURL } from "./index";
-import { loginToBackend } from "./loginUtil";
+import { getBackendURL, getToken } from ".";
 
-// Get the backend URL from environment or use default
-const API_BASE_URL = getBackendURL();
-console.log('Using API base URL:', API_BASE_URL);
-
-// Create axios instance with defaults
+// Create a base axios instance for API requests
 const apiClient = axios.create({
-    baseURL: API_BASE_URL,
+    baseURL: getBackendURL(),
     headers: {
         "Content-Type": "application/json",
     },
-    withCredentials: true,
 });
 
-// Request interceptor for adding auth token
+// Add request interceptor to attach auth token to all requests
 apiClient.interceptors.request.use(
-    async (config) => {
-        // Try to get token from local storage (check both possible keys)
-        let token = localStorage.getItem("token");
-        if (!token) {
-            token = localStorage.getItem("access_token");
+    (config) => {
+        // For SSR, we can't access localStorage so we skip token injection
+        if (typeof window === 'undefined') {
+            return config;
         }
 
-        // If token exists, add to headers
+        const token = getToken();
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
-            console.log(`Added auth token to request: ${config.method?.toUpperCase()} ${config.url}`);
-        } else {
-            console.log(`No auth token for request: ${config.method?.toUpperCase()} ${config.url}`);
-
-            // For development: If no token is found, use a default token
-            // REMOVE THIS IN PRODUCTION
-            if (process.env.NODE_ENV === 'development') {
-                console.log('No token found, using default development token');
-
-                // Create a default token for development
-                const defaultDevToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJjOGE2MGFlYi01N2ViLTQ0MmUtOTA1MS1kNzY5ZGUyOTlhOWEiLCJyb2xlIjoiU1VQRVJfQURNSU4iLCJleHAiOjE3NDQxMjUxMzh9.0oQ3zlw4FCIVXodMg9C4TV2jtRG4JtQZ6bE8pC2ZTBA";
-
-                // Use the default token
-                config.headers.Authorization = `Bearer ${defaultDevToken}`;
-                console.log('Using default development token for authentication');
-
-                // Store the token for future use
-                localStorage.setItem('token', defaultDevToken);
-                localStorage.setItem('access_token', defaultDevToken);
-
-                // Create a user object with super_admin role
-                const userObj = {
-                    id: 1,
-                    email: 'admin@p0cit.com',
-                    full_name: 'Super Admin',
-                    role: 'super_admin',
-                    is_active: true,
-                    created_at: new Date().toISOString(),
-                    updated_at: new Date().toISOString()
-                };
-                localStorage.setItem('user', JSON.stringify(userObj));
-
-                // Token is already set above
-                console.log('Using default development token for authentication');
-            }
         }
-
         return config;
     },
-    (error) => Promise.reject(error)
+    (error) => {
+        console.error('API Client Request Error:', error);
+        return Promise.reject(error);
+    }
 );
 
-// Response interceptor for handling common errors
+// Add response interceptor to handle common errors
 apiClient.interceptors.response.use(
     (response) => response,
-    async (error) => {
-        console.error(`API Error: ${error.config?.method?.toUpperCase()} ${error.config?.url}`, error.response?.status, error.response?.data);
-
-        if (error.response?.status === 401) {
-            console.log('401 Unauthorized error - clearing tokens and attempting to re-login');
-            // Clear all auth tokens
-            localStorage.removeItem("token");
-            localStorage.removeItem("access_token");
-            localStorage.removeItem("user");
-            localStorage.removeItem("user_data");
-
-            // In development, don't redirect immediately to make debugging easier
-            const isDev = process.env.NODE_ENV === 'development';
-            if (!isDev) {
-                window.location.href = "/login";
-            } else {
-                console.log('Development mode: not redirecting to login page automatically');
-
-                // Try to login again in development mode
-                try {
-                    console.log('Attempting to login after 401 error');
-                    await loginToBackend();
-                    console.log('Successfully logged in again');
-
-                    // Retry the original request if possible
-                    if (error.config) {
-                        console.log('Retrying original request');
-                        return axios(error.config);
-                    }
-                } catch (loginError) {
-                    console.error('Failed to login after 401 error:', loginError);
+    (error) => {
+        // Handle specific error cases (like 401, 403, etc)
+        if (error.response) {
+            // The request was made and the server responded with a status code
+            // outside of the range of 2xx
+            if (error.response.status === 401) {
+                console.warn('Unauthorized request - redirecting to login');
+                // Handle unauthorized (e.g., redirect to login)
+                if (typeof window !== 'undefined') {
+                    // Only redirect in browser context
+                    window.location.href = '/login';
                 }
             }
         }

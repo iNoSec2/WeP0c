@@ -57,13 +57,13 @@ async def create_admin_user(
     db_user = crud_user.get_user_by_username(db, username=user.username)
     if db_user:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Username already registered")
-    
+
     # Check if email is taken
     if user.email:
         db_user = crud_user.get_user_by_email(db, email=user.email)
         if db_user:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered")
-    
+
     return crud_user.create_user(db=db, user=user)
 
 @router.delete("/user/{user_id}", response_model=dict)
@@ -77,14 +77,14 @@ async def deactivate_user(
     user = crud_user.get_user(db, user_id=user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    
+
     # Don't allow deactivating self
     if user_id == current_user.id:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, 
+            status_code=status.HTTP_400_BAD_REQUEST,
             detail="Cannot deactivate your own admin account"
         )
-    
+
     crud_user.deactivate_user(db, user_id=user_id)
     return {"message": f"User {user.username} has been deactivated"}
 
@@ -99,37 +99,3 @@ async def get_all_projects(
     from app.crud.crud_project import get_projects
     return get_projects(db, skip=skip, limit=limit)
 
-@router.post("/init-db", response_model=dict)
-async def initialize_database(
-    request: dict = None,
-    db: Session = Depends(get_db),
-    current_user: Optional[User] = Depends(get_current_user)
-):
-    """Initialize database with default users and a project.
-    This can be triggered by admins or automatically when the system is first setup.
-    """
-    from app.db.init_db import init_db
-    
-    # Only allow this if current_user is a super admin or if the database is empty (first setup)
-    if current_user and current_user.role != Role.SUPER_ADMIN:
-        user_count = db.query(User).count()
-        if user_count > 0:  # If database already has users
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Only super admins can reinitialize the database"
-            )
-    
-    # Get recreate_tables option from request or default to False
-    recreate_tables = False
-    if request and isinstance(request, dict) and "recreate_tables" in request:
-        recreate_tables = bool(request["recreate_tables"])
-    
-    try:
-        # Initialize database
-        init_db(recreate_tables=recreate_tables)
-        return {"message": "Database initialized successfully with default users and project"}
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to initialize database: {str(e)}"
-        ) 

@@ -62,14 +62,16 @@ function AdminUsersPage() {
     const { data: users = [], isLoading } = useQuery<User[]>({
         queryKey: ["users"],
         queryFn: async () => {
-            const response = await axios.get("/api/admin/users/");
+            const response = await axios.get("/api/admin/users");
             return response.data;
         },
+        staleTime: 60000,
+        retry: 1,
     });
 
     const createUserMutation = useMutation({
         mutationFn: async (data: typeof formData) => {
-            const response = await axios.post("/api/admin/users/", data);
+            const response = await axios.post("/api/admin/users", data);
             return response.data;
         },
         onSuccess: () => {

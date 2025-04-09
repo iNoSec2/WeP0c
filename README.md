@@ -1,6 +1,6 @@
 # P0cit - Penetration Testing Management Platform
 
-P0cit is a platform designed to help penetration testers and security teams manage their penetration testing projects, share proofs of concept (PoC), and collaborate with clients.
+P0cit is a comprehensive platform designed to help penetration testers and security teams manage their penetration testing projects, share proofs of concept (PoC), and collaborate with clients. This production-ready version includes all the necessary features for a complete penetration testing workflow.
 
 ## Features
 
@@ -32,7 +32,7 @@ P0cit is a platform designed to help penetration testers and security teams mana
 - PostgreSQL
 - Docker (optional)
 
-### Installation with Docker
+### Installation with Docker (Recommended)
 
 The easiest way to get started is to use Docker Compose:
 
@@ -41,9 +41,21 @@ The easiest way to get started is to use Docker Compose:
 git clone https://github.com/yourusername/p0cit.git
 cd p0cit
 
+# Copy and configure environment files
+cp .env.example .env
+cp frontend/.env.example frontend/.env.local
+
 # Start the application with Docker Compose
 docker-compose up -d
+
+# Create a super admin user
+docker-compose exec api python -m app.create_super_admin admin admin@example.com yourpassword
 ```
+
+This will start all the necessary services:
+- Backend API on port 8001
+- Frontend on port 3000
+- PostgreSQL database on port 5432
 
 ### Manual Installation
 
@@ -115,8 +127,12 @@ MICROSOFT_TENANT_ID=your_tenant_id
 
 Once the application is running, you can access the API documentation at:
 
-- Swagger UI: http://localhost:8000/docs
-- ReDoc: http://localhost:8000/redoc
+- Swagger UI: http://localhost:8001/docs
+- ReDoc: http://localhost:8001/redoc
+
+## Production Deployment
+
+For production deployment instructions, see [PRODUCTION_SETUP.md](PRODUCTION_SETUP.md).
 
 ## Development Notes
 
@@ -129,13 +145,22 @@ The application uses JWT tokens for authentication. The token is stored in cooki
 3. Token is stored in cookies and included in subsequent requests
 4. Backend validates the token for protected routes
 
+### Markdown and Code Highlighting
+
+The platform supports rich markdown editing with code highlighting for documentation. This is implemented using:
+
+- `markdown-it` for rendering markdown
+- `react-markdown-editor-lite` for the editor component
+- `highlight.js` for syntax highlighting
+- Custom components for displaying code blocks with language detection
+
 ### Comments Feature
 
-The platform supports comments on pentests and PoCs. This allows discussion between team members and clients about findings and vulnerabilities.
+The platform supports comments on pentests and PoCs. This allows discussion between team members and clients about findings and vulnerabilities. Comments support markdown formatting for better readability.
 
 ### Role-Based Access Control
 
-Access to resources is controlled by the user's role. The frontend and backend both implement checks to ensure users can only access resources appropriate for their role.
+Access to resources is controlled by the user's role. The frontend and backend both implement checks to ensure users can only access resources appropriate for their role. The `RouteGuard` component in the frontend ensures that users can only access pages they have permission to view.
 
 ## License
 
@@ -143,4 +168,4 @@ Access to resources is controlled by the user's role. The frontend and backend b
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request. 
+Contributions are welcome! Please feel free to submit a Pull Request.

@@ -33,26 +33,26 @@ export interface UpdateProjectData {
 
 export const projectsService = {
     getProjects: async (): Promise<Project[]> => {
-        const response = await apiClient.get("/projects");
+        const response = await apiClient.get("/api/projects");
         return response.data;
     },
 
     getProject: async (id: string): Promise<Project> => {
-        const response = await apiClient.get(`/projects/${id}`);
+        const response = await apiClient.get(`/api/projects/${id}`);
         return response.data;
     },
 
     createProject: async (data: CreateProjectData): Promise<Project> => {
-        const response = await apiClient.post("/projects", data);
+        const response = await apiClient.post("/api/projects", data);
         return response.data;
     },
 
     updateProject: async (id: string, data: UpdateProjectData): Promise<Project> => {
-        const response = await apiClient.patch(`/projects/${id}`, data);
+        const response = await apiClient.patch(`/api/projects/${id}`, data);
         return response.data;
     },
 
     deleteProject: async (id: string): Promise<void> => {
-        await apiClient.delete(`/projects/${id}`);
+        await apiClient.delete(`/api/projects/${id}`);
     },
 }; 

@@ -1,8 +1,7 @@
 "use client";
 
 import React from "react";
-import { useQuery } from "@tanstack/react-query";
-import axios from "axios";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -14,6 +13,8 @@ import WelcomeMessage from "@/components/WelcomeMessage";
 import { RoleGuard } from "@/components/auth/RoleGuard";
 import { useAuth } from "@/contexts/AuthContext";
 import { Role } from "@/types/user";
+import dashboardAPI from "@/lib/api/dashboard";
+import vulnerabilitiesAPI from "@/lib/api/vulnerabilities";
 import {
     Users,
     FolderKanban,
@@ -47,23 +48,44 @@ interface DashboardStats {
     }[];
 }
 
+// Define a vulnerability interface
+interface Vulnerability {
+    id: string;
+    title: string;
+    description?: string;
+    severity?: string;
+    status?: string;
+    project_id?: string;
+    poc_code?: string;
+    [key: string]: any; // Allow for other properties
+}
+
 export default function DashboardPage() {
     const { user } = useAuth();
     const [activeTab, setActiveTab] = React.useState("overview");
 
+    const queryClient = useQueryClient();
+
+    // Fetch dashboard stats
     const { data: stats, isLoading: statsLoading } = useQuery<DashboardStats>({
         queryKey: ["dashboard-stats"],
-        queryFn: async () => {
-            const response = await axios.get("/api/dashboard/stats/");
-            return response.data;
-        },
+        queryFn: dashboardAPI.getStats,
+        staleTime: 60000, // 1 minute
     });
 
-    const { data: recentVulnerabilities = [], isLoading: vulnerabilitiesLoading } = useQuery({
+    // Fetch recent vulnerabilities
+    const { data: recentVulnerabilities = [], isLoading: vulnerabilitiesLoading } = useQuery<Vulnerability[]>({
         queryKey: ["recent-vulnerabilities"],
-        queryFn: async () => {
-            const response = await axios.get("/api/vulnerabilities/recent");
-            return response.data;
+        queryFn: vulnerabilitiesAPI.getRecent,
+        staleTime: 60000, // 1 minute
+    });
+
+    // Mutation for executing POCs
+    const executePocMutation = useMutation({
+        mutationFn: (id: string) => vulnerabilitiesAPI.execute(id),
+        onSuccess: () => {
+            // Invalidate and refetch
+            queryClient.invalidateQueries({ queryKey: ['recent-vulnerabilities'] });
         },
     });
 
@@ -224,7 +246,16 @@ export default function DashboardPage() {
                             <CardContent>
                                 <div className="space-y-4">
                                     {recentVulnerabilities.slice(0, 3).map((vulnerability: any) => (
-                                        <PocDisplay key={vulnerability.id} vulnerability={vulnerability} />
+                                        <PocDisplay
+                                            key={vulnerability.id}
+                                            vulnerability={vulnerability}
+                                            onExecute={(result) => {
+                                                console.log('POC execution result:', result);
+                                                // You can add additional logic here if needed
+                                            }}
+                                            isExecuting={executePocMutation.isPending && executePocMutation.variables === vulnerability.id}
+                                            executeHandler={() => executePocMutation.mutate(vulnerability.id)}
+                                        />
                                     ))}
                                 </div>
                             </CardContent>
@@ -234,7 +265,16 @@ export default function DashboardPage() {
                     <TabsContent value="pocs" className="space-y-4">
                         <div className="grid grid-cols-1 gap-4">
                             {recentVulnerabilities.filter((v: any) => v.poc_code).map((vulnerability: any) => (
-                                <PocDisplay key={vulnerability.id} vulnerability={vulnerability} />
+                                <PocDisplay
+                                    key={vulnerability.id}
+                                    vulnerability={vulnerability}
+                                    onExecute={(result) => {
+                                        console.log('POC execution result:', result);
+                                        // You can add additional logic here if needed
+                                    }}
+                                    isExecuting={executePocMutation.isPending && executePocMutation.variables === vulnerability.id}
+                                    executeHandler={() => executePocMutation.mutate(vulnerability.id)}
+                                />
                             ))}
                         </div>
                     </TabsContent>

@@ -1,69 +1,68 @@
-import apiClient from "./client";
+import axios from 'axios';
 
-export type SeverityLevel = "critical" | "high" | "medium" | "low" | "info";
-
-export interface Vulnerability {
-    id: string;
-    title: string;
-    description_md: string;
-    severity: SeverityLevel;
-    cvss_score?: number;
-    status: string;
-    project_id: string;
-    created_at: string;
-    updated_at: string;
-    reported_by: string;
-    remediation_md?: string;
-    proof_of_concept?: string;
-    affected_asset?: string;
-}
-
-export interface CreateVulnerabilityData {
-    title: string;
-    description_md: string;
-    severity: SeverityLevel;
-    cvss_score?: number;
-    status?: string;
-    project_id: string;
-    remediation_md?: string;
-    proof_of_concept?: string;
-    affected_asset?: string;
-}
-
-export interface UpdateVulnerabilityData {
-    title?: string;
-    description_md?: string;
-    severity?: SeverityLevel;
-    cvss_score?: number;
-    status?: string;
-    remediation_md?: string;
-    proof_of_concept?: string;
-    affected_asset?: string;
-}
-
-export const vulnerabilitiesService = {
-    getVulnerabilities: async (projectId?: string): Promise<Vulnerability[]> => {
-        const url = projectId ? `/projects/${projectId}/vulnerabilities` : "/vulnerabilities";
-        const response = await apiClient.get(url);
-        return response.data;
+/**
+ * Vulnerabilities API functions
+ */
+export const vulnerabilitiesAPI = {
+    getAll: async () => {
+        try {
+            const response = await axios.get('/api/vulnerabilities');
+            return response.data;
+        } catch (error) {
+            console.error('Error fetching vulnerabilities:', error);
+            throw error;
+        }
     },
 
-    getVulnerability: async (id: string): Promise<Vulnerability> => {
-        const response = await apiClient.get(`/vulnerabilities/${id}`);
-        return response.data;
+    getRecent: async () => {
+        try {
+            const response = await axios.get('/api/vulnerabilities/recent');
+            return response.data;
+        } catch (error) {
+            console.error('Error fetching recent vulnerabilities:', error);
+            throw error;
+        }
     },
 
-    createVulnerability: async (data: CreateVulnerabilityData): Promise<Vulnerability> => {
-        const response = await apiClient.post("/vulnerabilities", data);
-        return response.data;
+    getById: async (id: string) => {
+        try {
+            const response = await axios.get(`/api/vulnerabilities/detail/${id}`);
+            return response.data;
+        } catch (error) {
+            console.error(`Error fetching vulnerability ${id}:`, error);
+            throw error;
+        }
     },
 
-    updateVulnerability: async (id: string, data: UpdateVulnerabilityData): Promise<Vulnerability> => {
-        const response = await apiClient.patch(`/vulnerabilities/${id}`, data);
-        return response.data;
+    create: async (data: any) => {
+        try {
+            const response = await axios.post('/api/vulnerabilities', data);
+            return response.data;
+        } catch (error) {
+            console.error('Error creating vulnerability:', error);
+            throw error;
+        }
     },
 
-    deleteVulnerability: async (id: string): Promise<void> => {
-        await apiClient.delete(`/vulnerabilities/${id}`);
+    update: async (id: string, data: any) => {
+        try {
+            const response = await axios.put(`/api/vulnerabilities/${id}`, data);
+            return response.data;
+        } catch (error) {
+            console.error(`Error updating vulnerability ${id}:`, error);
+            throw error;
+        }
     },
-}; 
+
+    execute: async (id: string) => {
+        try {
+            const response = await axios.post(`/api/vulnerabilities/execute/${id}`);
+            return response.data;
+        } catch (error) {
+            console.error(`Error executing vulnerability ${id}:`, error);
+            throw error;
+        }
+    }
+};
+
+export default vulnerabilitiesAPI; 

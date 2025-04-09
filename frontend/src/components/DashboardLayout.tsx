@@ -52,22 +52,11 @@ export function SidebarNav({ className, items, ...props }: SidebarNavProps) {
 }
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-    // Initialize with a default role, but we'll try to get the actual role
-    const [userRole, setUserRole] = React.useState<string>("super_admin");
+    // Initialize with no role, we'll get the actual role from localStorage or token
+    const [userRole, setUserRole] = React.useState<string>("");
 
     React.useEffect(() => {
         console.log('DashboardLayout: Getting user role');
-
-        // For development, always set to super_admin to ensure access to all routes
-        if (process.env.NODE_ENV === 'development') {
-            console.log('Development mode: Setting role to super_admin');
-            setUserRole('super_admin');
-
-            // Save the super_admin role to localStorage for consistency
-            const userObj = { role: 'super_admin' };
-            localStorage.setItem('user', JSON.stringify(userObj));
-            return;
-        }
 
         // First try to get the role from user data in localStorage
         const userData = localStorage.getItem('user');
@@ -110,12 +99,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             }
         }
 
-        // If we still don't have a role, use super_admin as a fallback for development
-        console.log('Using default super_admin role');
-
-        // Save the default role to localStorage for consistency
-        const userObj = { role: 'super_admin' };
-        localStorage.setItem('user', JSON.stringify(userObj));
+        // If we still don't have a role, redirect to login
+        console.log('No role found, redirecting to login');
+        window.location.href = '/login';
     }, []);
 
     // Shared dashboard items

@@ -15,18 +15,34 @@ interface PocDisplayProps {
         id: string;
         title: string;
         description_md?: string;
+        description_html?: string;
         poc_type?: string;
         poc_code?: string;
+        poc_html?: string;
         severity?: string;
         status?: string;
+        project_id?: string;
+        project_name?: string;
+        created_at?: string;
+        updated_at?: string;
     };
     onExecute?: (result: any) => void;
+    isExecuting?: boolean;
+    executeHandler?: () => void;
 }
 
-export const PocDisplay: React.FC<PocDisplayProps> = ({ vulnerability, onExecute }) => {
+export const PocDisplay: React.FC<PocDisplayProps> = ({
+    vulnerability,
+    onExecute,
+    isExecuting: externalIsExecuting,
+    executeHandler
+}) => {
     const { toast } = useToast();
-    const [isExecuting, setIsExecuting] = useState(false);
+    const [internalIsExecuting, setInternalIsExecuting] = useState(false);
     const [executionResult, setExecutionResult] = useState<any>(null);
+
+    // Use external isExecuting state if provided, otherwise use internal state
+    const isExecuting = externalIsExecuting !== undefined ? externalIsExecuting : internalIsExecuting;
 
     const handleExecute = async () => {
         try {
@@ -95,14 +111,25 @@ export const PocDisplay: React.FC<PocDisplayProps> = ({ vulnerability, onExecute
                         </TabsTrigger>
                     </TabsList>
                     <TabsContent value="description" className="mt-4">
-                        {vulnerability.description_md ? (
+                        {vulnerability.description_html ? (
+                            <div className="prose prose-sm max-w-none dark:prose-invert"
+                                dangerouslySetInnerHTML={{ __html: vulnerability.description_html }} />
+                        ) : vulnerability.description_md ? (
                             <MarkdownDisplay content={vulnerability.description_md} />
                         ) : (
                             <p className="text-muted-foreground">No description available.</p>
                         )}
                     </TabsContent>
                     <TabsContent value="poc" className="mt-4">
-                        {vulnerability.poc_code ? (
+                        {vulnerability.poc_html ? (
+                            <div className="space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <Badge variant="outline">{vulnerability.poc_type}</Badge>
+                                </div>
+                                <div className="prose prose-sm max-w-none dark:prose-invert"
+                                    dangerouslySetInnerHTML={{ __html: vulnerability.poc_html }} />
+                            </div>
+                        ) : vulnerability.poc_code ? (
                             <div className="space-y-4">
                                 <div className="flex items-center justify-between">
                                     <Badge variant="outline">{vulnerability.poc_type}</Badge>
@@ -135,4 +162,4 @@ export const PocDisplay: React.FC<PocDisplayProps> = ({ vulnerability, onExecute
             </CardContent>
         </Card>
     );
-}; 
+};

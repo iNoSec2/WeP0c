@@ -36,16 +36,6 @@ import { useToast } from "@/components/ui/use-toast";
 import DashboardLayout from "@/components/DashboardLayout";
 import { PlusCircle, Search, Edit, Trash2 } from "lucide-react";
 
-interface Project {
-    id: string;
-    name: string;
-    client: string;
-    status: string;
-    start_date: string;
-    end_date: string;
-    description: string;
-}
-
 export default function ProjectsPage() {
     const router = useRouter();
     const { toast } = useToast();
@@ -54,24 +44,24 @@ export default function ProjectsPage() {
     const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
     const [formData, setFormData] = useState({
         name: "",
-        client: "",
+        client_id: "",
         status: "pending",
         start_date: "",
         end_date: "",
         description: "",
     });
 
-    const { data: projects = [], isLoading } = useQuery<Project[]>({
+    const { data: projects = [], isLoading } = useQuery({
         queryKey: ["projects"],
         queryFn: async () => {
-            const response = await axios.get("/api/projects/projects/");
+            const response = await axios.get("/api/projects");
             return response.data;
         },
     });
 
     const createProjectMutation = useMutation({
         mutationFn: async (data: typeof formData) => {
-            const response = await axios.post("/api/projects/projects/", data);
+            const response = await axios.post("/api/projects", data);
             return response.data;
         },
         onSuccess: () => {
@@ -79,7 +69,7 @@ export default function ProjectsPage() {
             setIsCreateDialogOpen(false);
             setFormData({
                 name: "",
-                client: "",
+                client_id: "",
                 status: "pending",
                 start_date: "",
                 end_date: "",
@@ -93,7 +83,7 @@ export default function ProjectsPage() {
         onError: (error: any) => {
             toast({
                 title: "Error",
-                description: error.response?.data?.message || "Failed to create project",
+                description: error.response?.data?.detail || "Failed to create project",
                 variant: "destructive",
             });
         },
@@ -101,7 +91,7 @@ export default function ProjectsPage() {
 
     const deleteProjectMutation = useMutation({
         mutationFn: async (projectId: string) => {
-            await axios.delete(`/api/projects/projects/${projectId}`);
+            await axios.delete(`/api/projects/${projectId}`);
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["projects"] });
@@ -113,13 +103,13 @@ export default function ProjectsPage() {
         onError: (error: any) => {
             toast({
                 title: "Error",
-                description: error.response?.data?.message || "Failed to delete project",
+                description: error.response?.data?.detail || "Failed to delete project",
                 variant: "destructive",
             });
         },
     });
 
-    const filteredProjects = projects.filter((project) =>
+    const filteredProjects = projects.filter((project: any) =>
         project.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
@@ -173,12 +163,12 @@ export default function ProjectsPage() {
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <Label htmlFor="client">Client</Label>
+                                    <Label htmlFor="client_id">Client</Label>
                                     <Input
-                                        id="client"
-                                        value={formData.client}
+                                        id="client_id"
+                                        value={formData.client_id}
                                         onChange={(e) =>
-                                            setFormData((prev) => ({ ...prev, client: e.target.value }))
+                                            setFormData((prev) => ({ ...prev, client_id: e.target.value }))
                                         }
                                         required
                                     />
@@ -272,42 +262,35 @@ export default function ProjectsPage() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {filteredProjects.map((project) => (
+                                {filteredProjects.map((project: any) => (
                                     <TableRow key={project.id}>
                                         <TableCell className="font-medium">{project.name}</TableCell>
-                                        <TableCell>{typeof project.client === 'object' && project.client?.name ? project.client.name : project.client}</TableCell>
+                                        <TableCell>{project.client_id}</TableCell>
                                         <TableCell>
                                             <Badge className={getStatusColor(project.status)}>
                                                 {project.status}
                                             </Badge>
                                         </TableCell>
-                                        <TableCell>
-                                            {new Date(project.start_date).toLocaleDateString()}
-                                        </TableCell>
-                                        <TableCell>
-                                            {new Date(project.end_date).toLocaleDateString()}
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            <div className="flex justify-end space-x-2">
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    onClick={() => router.push(`/projects/${project.id}/edit`)}
-                                                >
-                                                    <Edit className="h-4 w-4" />
-                                                </Button>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    onClick={() => {
-                                                        if (window.confirm("Are you sure you want to delete this project?")) {
-                                                            deleteProjectMutation.mutate(project.id);
-                                                        }
-                                                    }}
-                                                >
-                                                    <Trash2 className="h-4 w-4" />
-                                                </Button>
-                                            </div>
+                                        <TableCell>{project.start_date}</TableCell>
+                                        <TableCell>{project.end_date}</TableCell>
+                                        <TableCell className="flex gap-2">
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={() => router.push(`/projects/${project.id}`)}
+                                            >
+                                                <Edit className="h-4 w-4" />
+                                                <span className="sr-only">Edit</span>
+                                            </Button>
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={() => deleteProjectMutation.mutate(project.id)}
+                                                className="text-red-500"
+                                            >
+                                                <Trash2 className="h-4 w-4" />
+                                                <span className="sr-only">Delete</span>
+                                            </Button>
                                         </TableCell>
                                     </TableRow>
                                 ))}
