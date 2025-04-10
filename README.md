@@ -1,7 +1,6 @@
 # P0cit - Penetration Testing Management Platform
 
 <div align="center">
-  <img src="frontend/public/logo.png" alt="P0cit Logo" width="200"/>
   <p>A comprehensive platform for managing penetration testing projects, vulnerabilities, and client collaboration.</p>
 
   <div>
