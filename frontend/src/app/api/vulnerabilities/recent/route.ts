@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import axios from 'axios';
+import { adminClient } from '@/lib/api/adminClient';
 
 export async function GET(request: Request) {
     try {
@@ -21,36 +21,18 @@ export async function GET(request: Request) {
             return NextResponse.json([], { status: 200 });
         }
 
-        // Log token information for debugging (truncated for security)
-        const tokenPreview = finalToken.substring(0, 10) + '...' + finalToken.substring(finalToken.length - 5);
-        console.log('Using token:', tokenPreview);
-
-        // For server-side API routes, use the service name
-        const backendURL = "http://api:8001";
-        console.log('Fetching recent vulnerabilities from:', `${backendURL}/api/vulnerabilities/recent`);
-
-        // Forward the request to the backend with the token
-        const response = await axios.get(`${backendURL}/api/vulnerabilities/recent`, {
+        // Use the final token in the Authorization header
+        const vulnerabilities = await adminClient.get('/api/vulnerabilities/recent', undefined, {
             headers: {
                 'Authorization': `Bearer ${finalToken}`
-            },
-            validateStatus: function (status) {
-                return true; // Accept all status codes for handling
             }
         });
 
-        // Handle different response cases
-        if (response.status === 200) {
-            // Ensure response.data is an array
-            const vulnerabilities = Array.isArray(response.data) ? response.data : [];
-            return NextResponse.json(vulnerabilities);
-        } else {
-            console.error('Backend error:', response.status, response.data);
-            // Return empty array instead of error
-            return NextResponse.json([], { status: 200 });
-        }
+        return NextResponse.json(vulnerabilities);
     } catch (error: any) {
-        console.error('Error fetching recent vulnerabilities:', error.response?.data || error.message);
+        console.error('Error fetching recent vulnerabilities:',
+            error.details || error.message || 'Unknown error');
+
         // Return empty array instead of error for smooth UI rendering
         return NextResponse.json([], { status: 200 });
     }

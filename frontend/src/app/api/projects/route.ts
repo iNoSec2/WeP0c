@@ -3,8 +3,20 @@ import axios from 'axios';
 import { getBackendURL } from '@/lib/api';
 import { loginToBackend } from '@/lib/api/loginUtil';
 
+// Define multiple backend URLs to try in order of preference
+const BACKEND_URLS = [
+    'http://127.0.0.1:8001',  // Explicit IPv4 address - avoids IPv6 issues
+    'http://api:8001',        // Docker service name
+    process.env.NEXT_PUBLIC_API_URL || '' // Environment variable fallback
+].filter(Boolean); // Remove empty entries
+
 export async function GET(request: Request) {
     try {
+        // Get URL parameters
+        const url = new URL(request.url);
+        const skip = url.searchParams.get('skip') || '0';
+        const limit = url.searchParams.get('limit') || '100';
+
         // Get token from cookies
         const cookies = request.headers.get('cookie') || '';
         const tokenMatch = cookies.match(/token=([^;]+)/);
@@ -24,27 +36,50 @@ export async function GET(request: Request) {
             );
         }
 
-        // Forward request to backend using service name from docker-compose
-        const backendURL = getBackendURL();
-        console.log('Fetching projects from:', `${backendURL}/api/projects`);
+        // Try each backend URL until one works
+        let lastError = null;
+        for (const backendURL of BACKEND_URLS) {
+            try {
+                console.log(`Trying to fetch projects from: ${backendURL}/api/projects?skip=${skip}&limit=${limit}`);
 
-        const response = await axios.get(`${backendURL}/api/projects`, {
-            headers: {
-                Authorization: `Bearer ${finalToken}`
+                const response = await axios.get(`${backendURL}/api/projects`, {
+                    params: {
+                        skip,
+                        limit
+                    },
+                    headers: {
+                        Authorization: `Bearer ${finalToken}`
+                    },
+                    timeout: 5000 // 5 second timeout
+                });
+
+                console.log(`Successfully fetched ${response.data.length} projects from ${backendURL}`);
+                return NextResponse.json(response.data);
+            } catch (error) {
+                console.log(`Failed to fetch projects from ${backendURL}:`, error.message);
+                lastError = error;
+                // Continue to next URL
             }
-        });
+        }
 
-        return NextResponse.json(response.data);
-    } catch (error: any) {
-        console.error('Error fetching projects:', error);
+        // If we get here, all URLs failed
+        console.error('All backend URLs failed to fetch projects', lastError);
 
         // Return proper error response
-        const status = error.response?.status || 500;
-        const message = error.response?.data?.detail || 'Failed to fetch projects';
+        const status = lastError?.response?.status || 500;
+        const message = lastError?.response?.data?.detail || 'Failed to fetch projects';
 
         return NextResponse.json(
             { error: message },
             { status: status }
+        );
+    } catch (error) {
+        console.error('Error in projects endpoint:', error);
+
+        // Return proper error response
+        return NextResponse.json(
+            { error: 'Failed to process request' },
+            { status: 500 }
         );
     }
 }

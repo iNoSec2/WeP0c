@@ -48,6 +48,7 @@ export function Loading({
               variantClasses[variant],
               'animate-spin'
             )}
+            style={{ animationDuration: '1s' }}
           />
         </div>
         {(text || fullScreen) && (
@@ -62,15 +63,15 @@ export function Loading({
 
 export function LoadingScreen({ text = 'Loading...' }: { text?: string }) {
   return (
-    <div className="fixed inset-0 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm z-50">
-      <div className="flex flex-col items-center justify-center p-8 rounded-lg bg-card shadow-lg">
-        <div className="relative">
-          <div className="h-16 w-16 rounded-full border-4 border-muted animate-pulse"></div>
-          <Loader2 className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 h-8 w-8 animate-spin text-primary" />
+    <div className="fixed inset-0 flex flex-col items-center justify-center bg-background z-50">
+      <div className="flex flex-col items-center justify-center p-8 rounded-lg shadow-lg">
+        <div className="relative mb-4">
+          <div className="h-16 w-16 rounded-full border-4 border-muted"></div>
+          <div className="absolute top-0 left-0 h-16 w-16 rounded-full border-4 border-t-primary border-r-transparent border-b-transparent border-l-transparent animate-spin" style={{ animationDuration: '1s' }}></div>
         </div>
-        <p className="mt-4 text-lg font-medium">{text}</p>
+        <p className="text-lg font-medium mb-3">{text}</p>
         <div className="mt-2 w-48 h-1.5 bg-muted rounded-full overflow-hidden">
-          <div className="h-full bg-primary animate-progress"></div>
+          <div className="h-full bg-gradient-to-r from-primary/70 via-primary to-primary/70 animate-gradient-x animate-progress"></div>
         </div>
       </div>
     </div>

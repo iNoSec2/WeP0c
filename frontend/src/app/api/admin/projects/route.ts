@@ -3,17 +3,14 @@ import axios from 'axios';
 import { getBackendURL } from '@/lib/api';
 import { loginToBackend } from '@/lib/api/loginUtil';
 
-// Helper function to get token
 const getTokenFromRequest = (request: Request) => {
     const cookies = request.headers.get('cookie') || '';
     const tokenMatch = cookies.match(/token=([^;]+)/);
     const token = tokenMatch ? decodeURIComponent(tokenMatch[1]) : null;
 
-    // Also check Authorization header as fallback
     const authHeader = request.headers.get('Authorization');
     const headerToken = authHeader?.split(' ')[1];
 
-    // Use token from cookie or header
     return token || headerToken;
 };
 
@@ -49,16 +46,30 @@ export async function GET(request: Request) {
             );
         }
 
-        // Get the backend URL
-        const backendURL = getBackendURL();
-        console.log('Fetching projects from backend');
+        // API container URLs - direct connection via Docker network
+        const apiEndpoints = [
+            'http://api:8001/api/admin/projects',  // Correct endpoint from admin.py
+            'http://api:8001/api/projects'         // Regular projects endpoint
+        ];
 
-        // Try multiple endpoint patterns
+        // IPv4 direct URLs - for local development
+        const ipEndpoints = [
+            'http://127.0.0.1:8001/api/admin/projects',
+            'http://127.0.0.1:8001/api/projects'
+        ];
+
+        // Dynamic URLs - fallback using the environment variable
+        const dynamicBackendURL = getBackendURL();
+        const dynamicEndpoints = [
+            `${dynamicBackendURL}/api/admin/projects`,
+            `${dynamicBackendURL}/api/projects`
+        ];
+
+        // Combine all endpoint patterns prioritizing the ones that are most likely to work
         const endpoints = [
-            `${backendURL}/api/admin/projects`,
-            `${backendURL}/api/projects`,
-            'http://api:8001/api/admin/projects',
-            'http://127.0.0.1:8001/api/admin/projects'
+            ...apiEndpoints,     // Docker container names - highest priority in Docker environment
+            ...ipEndpoints,      // Direct IP - good for local development
+            ...dynamicEndpoints  // Dynamic endpoint - fallback
         ];
 
         let lastError = null;
@@ -66,18 +77,24 @@ export async function GET(request: Request) {
         // Try each endpoint until one works
         for (const endpoint of endpoints) {
             try {
-                console.log(`Trying endpoint: ${endpoint}`);
+                console.log(`Trying to fetch projects from: ${endpoint}`);
                 const response = await axios.get(endpoint, {
                     headers: {
                         'Authorization': `Bearer ${finalToken}`
                     },
-                    timeout: 5000
+                    timeout: 5000 // 5 second timeout
                 });
 
-                console.log(`Successful response from ${endpoint}`);
+                console.log(`Successfully fetched projects from ${endpoint}`);
                 return NextResponse.json(response.data);
             } catch (error: any) {
-                console.log(`Endpoint ${endpoint} failed:`, error.message);
+                console.log(`Endpoint ${endpoint} failed: ${error.message}`);
+
+                // Log detailed error for debugging
+                if (error.response) {
+                    console.log(`Status: ${error.response.status}, Data:`, error.response.data);
+                }
+
                 lastError = error;
                 // Continue to the next endpoint
             }
@@ -86,45 +103,15 @@ export async function GET(request: Request) {
         // If we're here, all endpoints failed
         console.error('All backend endpoints failed for projects:', lastError?.message);
 
-        // For development, provide mock data
-        if (process.env.NODE_ENV === 'development') {
-            console.log('Development mode: Returning mock project data');
-            return NextResponse.json([
-                {
-                    id: '00000000-0000-4000-a000-000000000001',
-                    name: 'Security Assessment',
-                    description: 'Web application security assessment',
-                    client_id: '00000000-0000-4000-a000-000000000003',
-                    start_date: '2023-05-01',
-                    end_date: '2023-05-15',
-                    status: 'COMPLETED',
-                    client: {
-                        name: 'Client Company',
-                        id: '00000000-0000-4000-a000-000000000003'
-                    }
-                },
-                {
-                    id: '00000000-0000-4000-a000-000000000002',
-                    name: 'Penetration Test',
-                    description: 'Network penetration testing',
-                    client_id: '00000000-0000-4000-a000-000000000003',
-                    start_date: '2023-06-01',
-                    end_date: '2023-06-15',
-                    status: 'IN_PROGRESS',
-                    client: {
-                        name: 'Client Company',
-                        id: '00000000-0000-4000-a000-000000000003'
-                    }
-                }
-            ]);
-        }
-
-        // Return proper error response
+        // Return proper error response with details
         const status = lastError?.response?.status || 500;
         const message = lastError?.response?.data?.detail || 'Failed to fetch projects';
 
         return NextResponse.json(
-            { error: message },
+            {
+                error: message,
+                message: "Unable to connect to project management service. Please check network connectivity or contact support."
+            },
             { status: status }
         );
     } catch (error: any) {
@@ -172,16 +159,38 @@ export async function POST(request: Request) {
         const body = await request.json();
         console.log('Creating project with data:', body);
 
-        // Get the backend URL
-        const backendURL = getBackendURL();
+        // Validate required fields
+        if (!body.name) {
+            return NextResponse.json(
+                { error: 'Project name is required' },
+                { status: 400 }
+            );
+        }
 
-        // Try multiple endpoint patterns
+        // API container URLs - direct connection via Docker network
+        const apiEndpoints = [
+            'http://api:8001/api/projects',
+            'http://api:8001/api/admin/projects'
+        ];
+
+        // IPv4 direct URLs - for local development
+        const ipEndpoints = [
+            'http://127.0.0.1:8001/api/projects',
+            'http://127.0.0.1:8001/api/admin/projects'
+        ];
+
+        // Dynamic URLs - fallback using the environment variable
+        const dynamicBackendURL = getBackendURL();
+        const dynamicEndpoints = [
+            `${dynamicBackendURL}/api/projects`,
+            `${dynamicBackendURL}/api/admin/projects`
+        ];
+
+        // Combine all endpoint patterns prioritizing the ones that are most likely to work
         const endpoints = [
-            `${backendURL}/api/admin/project`,
-            `${backendURL}/api/admin/projects`,
-            `${backendURL}/api/projects`,
-            'http://api:8001/api/admin/project',
-            'http://127.0.0.1:8001/api/admin/project'
+            ...apiEndpoints,     // Docker container names - highest priority in Docker environment
+            ...ipEndpoints,      // Direct IP - good for local development
+            ...dynamicEndpoints  // Dynamic endpoint - fallback
         ];
 
         let lastError = null;
@@ -189,27 +198,27 @@ export async function POST(request: Request) {
         // Try each endpoint until one works
         for (const endpoint of endpoints) {
             try {
-                console.log(`Trying to create project at endpoint: ${endpoint}`);
+                console.log(`Trying to create project at: ${endpoint}`);
                 const response = await axios.post(endpoint, body, {
                     headers: {
                         'Authorization': `Bearer ${finalToken}`,
                         'Content-Type': 'application/json'
                     },
-                    timeout: 5000
+                    timeout: 8000 // 8 second timeout - projects may take longer to create
                 });
 
                 console.log(`Project successfully created at ${endpoint}`);
                 return NextResponse.json(response.data, { status: 201 });
             } catch (error: any) {
-                console.log(`Endpoint ${endpoint} failed:`, error.message);
-                lastError = error;
+                console.log(`Endpoint ${endpoint} failed: ${error.message}`);
 
-                // Log detailed error information for debugging
+                // Log detailed error for debugging
                 if (error.response) {
-                    console.log('Error response status:', error.response.status);
-                    console.log('Error response data:', error.response.data);
+                    console.log(`Error status: ${error.response.status}`);
+                    console.log('Error details:', error.response.data);
                 }
 
+                lastError = error;
                 // Continue to the next endpoint
             }
         }
@@ -217,30 +226,15 @@ export async function POST(request: Request) {
         // If we're here, all endpoints failed
         console.error('All backend endpoints failed for project creation:', lastError?.message);
 
-        // For development, provide mock response
-        if (process.env.NODE_ENV === 'development') {
-            console.log('Development mode: Returning mock project creation response');
-            return NextResponse.json({
-                id: '00000000-0000-4000-a000-' + Math.floor(Math.random() * 1000000000000).toString().padStart(12, '0'),
-                name: body.name || 'New Project',
-                description: body.description || 'Project description',
-                client_id: body.client_id || '00000000-0000-4000-a000-000000000003',
-                start_date: body.start_date || new Date().toISOString().split('T')[0],
-                end_date: body.end_date || null,
-                status: body.status || 'PLANNED',
-                created_at: new Date().toISOString()
-            }, { status: 201 });
-        }
-
-        // Return detailed error message for debugging
+        // Return detailed error message for API debugging
         const status = lastError?.response?.status || 500;
         const message = lastError?.response?.data?.detail || 'Failed to create project';
 
         return NextResponse.json(
             {
                 error: message,
-                details: lastError?.response?.data,
-                requestBody: body  // Include the request body for debugging
+                message: "Unable to create project. Please verify the information and try again.",
+                details: lastError?.response?.data
             },
             { status: status }
         );

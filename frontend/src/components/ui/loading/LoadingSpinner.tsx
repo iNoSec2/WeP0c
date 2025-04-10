@@ -2,18 +2,19 @@
 
 import React from 'react';
 import { cn } from '@/lib/utils';
-import { motion } from 'framer-motion';
 
 interface LoadingSpinnerProps {
   size?: 'sm' | 'md' | 'lg';
   className?: string;
   color?: 'primary' | 'secondary' | 'success' | 'destructive';
+  text?: string;
 }
 
 export function LoadingSpinner({
   size = 'md',
   className,
-  color = 'primary'
+  color = 'primary',
+  text
 }: LoadingSpinnerProps) {
   const sizeClasses = {
     sm: 'h-4 w-4 border-2',
@@ -22,29 +23,59 @@ export function LoadingSpinner({
   };
 
   const colorClasses = {
-    primary: 'border-primary/70 border-t-primary',
-    secondary: 'border-secondary/70 border-t-secondary',
-    success: 'border-green-500/70 border-t-green-500',
-    destructive: 'border-destructive/70 border-t-destructive',
+    primary: 'border-primary/20 border-t-primary',
+    secondary: 'border-secondary/20 border-t-secondary',
+    success: 'border-green-500/20 border-t-green-500',
+    destructive: 'border-destructive/20 border-t-destructive',
   };
 
   return (
-    <div className="flex justify-center items-center">
-      <motion.div
-        initial={{ opacity: 0.5, rotate: 0 }}
-        animate={{ opacity: 1, rotate: 360 }}
-        transition={{
-          duration: 1,
-          repeat: Infinity,
-          ease: "linear",
-        }}
+    <div className="flex flex-col items-center justify-center">
+      <div
         className={cn(
-          'rounded-full border-solid',
+          'rounded-full border-solid animate-spin',
           colorClasses[color],
           sizeClasses[size],
           className
         )}
+        style={{ animationDuration: '0.8s' }}
       />
+
+      {text && (
+        <p className="mt-2 text-sm text-muted-foreground">{text}</p>
+      )}
+    </div>
+  );
+}
+
+// Fallback component that doesn't require framer-motion
+export function FallbackSpinner({
+  size = 'md',
+  className,
+  color = 'primary',
+  text
+}: LoadingSpinnerProps) {
+  const sizeClasses = {
+    sm: 'h-4 w-4',
+    md: 'h-8 w-8',
+    lg: 'h-12 w-12',
+  };
+
+  return (
+    <div className="flex flex-col items-center justify-center">
+      <div className="relative">
+        <div className={cn('rounded-full', sizeClasses[size], className)}>
+          <div className={`absolute inset-0 rounded-full border-2 border-muted`} />
+          <div
+            className={`absolute inset-0 rounded-full border-2 border-t-primary border-r-transparent border-b-transparent border-l-transparent animate-spin`}
+            style={{ animationDuration: '0.8s' }}
+          />
+        </div>
+      </div>
+
+      {text && (
+        <p className="mt-2 text-sm text-muted-foreground">{text}</p>
+      )}
     </div>
   );
 }

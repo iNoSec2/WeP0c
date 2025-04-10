@@ -34,6 +34,30 @@ async def get_all_users(
     """Get all users (admin only)"""
     return db.query(User).offset(skip).limit(limit).all()
 
+@router.post("/users", response_model=UserOut)
+async def create_user_admin(
+    user: UserCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(Role.SUPER_ADMIN))
+):
+    """Create any type of user as admin"""
+    # Check if username is taken
+    db_user = crud_user.get_user_by_username(db, username=user.username)
+    if db_user:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Username already registered")
+
+    # Check if email is taken
+    if user.email:
+        db_user = crud_user.get_user_by_email(db, email=user.email)
+        if db_user:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered")
+    
+    # Ensure role is uppercase in case frontend sends lowercase
+    if user.role and isinstance(user.role, str):
+        user.role = Role(user.role.upper())
+        
+    return crud_user.create_user(db=db, user=user)
+
 @router.get("/user/{user_id}", response_model=UserOut)
 async def get_user_details(
     user_id: UUID,

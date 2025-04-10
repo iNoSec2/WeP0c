@@ -26,9 +26,9 @@ export const getBackendURL = () => {
         return "http://api:8001";
     }
 
-    // For client-side (browser) calls, use local address
-    // This addresses IPv4/IPv6 compatibility issues and ensures connectivity
-    return "http://localhost:8001";
+    // For client-side (browser) calls, always use explicit IPv4 address to avoid IPv6 issues
+    // The explicit IPv4 address avoids ECONNREFUSED errors with ::1 (IPv6 localhost)
+    return "http://127.0.0.1:8001";
 };
 
 // Helper function to get the token from localStorage

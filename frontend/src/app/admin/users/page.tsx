@@ -137,10 +137,14 @@ function AdminUsersPage() {
         },
     });
 
-    const filteredUsers = users.filter((user) =>
-        user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.email.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const filteredUsers = users.filter((user) => {
+        const username = user.username?.toLowerCase() || '';
+        const email = user.email?.toLowerCase() || '';
+        const searchTermLower = searchTerm.toLowerCase();
+
+        return username.includes(searchTermLower) ||
+            email.includes(searchTermLower);
+    });
 
     const getRoleBadge = (role: string) => {
         switch (role.toLowerCase()) {

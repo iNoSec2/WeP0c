@@ -4,11 +4,15 @@
 :root {
   --primary-light: hsl(222.2 47.4% 30%);
   --primary-dark-light: hsl(222.2 47.4% 20%);
+  --primary-rgb: 29, 78, 216;
+  /* RGB value for primary color */
 }
 
 .dark {
   --primary-light: hsl(222.2 47.4% 20%);
   --primary-dark-light: hsl(222.2 47.4% 15%);
+  --primary-rgb: 29, 78, 216;
+  /* RGB value for primary color in dark mode */
 }
 
 /* Ensure sidebar items are visible */
@@ -84,18 +88,81 @@
 /* Loading animation */
 @keyframes pulse-glow {
   0% {
-    box-shadow: 0 0 0 0 rgba(var(--primary), 0.4);
+    box-shadow: 0 0 0 0 rgba(var(--primary-rgb), 0.4);
   }
 
   70% {
-    box-shadow: 0 0 0 10px rgba(var(--primary), 0);
+    box-shadow: 0 0 0 10px rgba(var(--primary-rgb), 0);
   }
 
   100% {
-    box-shadow: 0 0 0 0 rgba(var(--primary), 0);
+    box-shadow: 0 0 0 0 rgba(var(--primary-rgb), 0);
   }
 }
 
 .pulse-animation {
   animation: pulse-glow 2s infinite;
+}
+
+/* Fix animation for progress bar */
+@keyframes progress-animation {
+  0% {
+    width: 0%;
+  }
+
+  100% {
+    width: 100%;
+  }
+}
+
+.animate-progress {
+  animation: progress-animation 2.5s ease-in-out forwards;
+}
+
+/* Gradient animation */
+@keyframes gradient-animation {
+  0% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
+
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.animate-gradient-x {
+  background-size: 200% 100%;
+  animation: gradient-animation 3s ease infinite;
+}
+
+/* Loading spinner animation */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+/* Loading bounce animation */
+@keyframes bounce {
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.animate-bounce {
+  animation: bounce 1s infinite;
 }

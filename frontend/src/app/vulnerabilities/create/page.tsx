@@ -14,6 +14,13 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import Link from "next/link";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import ReactMarkdown from 'react-markdown';
+import rehypeRaw from 'rehype-raw';
+import rehypeSanitize from 'rehype-sanitize';
+import remarkGfm from 'remark-gfm';
+import 'highlight.js/styles/github-dark.css';
+import hljs from 'highlight.js';
 
 export default function CreateVulnerabilityPage() {
     const router = useRouter();
@@ -29,19 +36,60 @@ export default function CreateVulnerabilityPage() {
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
     const [successMessage, setSuccessMessage] = useState("");
+    const [markdownTab, setMarkdownTab] = useState("edit");
+    const [codeTab, setCodeTab] = useState("edit");
+    const [loadingProjects, setLoadingProjects] = useState(false);
+    const [projectsError, setProjectsError] = useState("");
 
-    // Fetch projects for the dropdown
-    const { data: projects = [] } = useQuery({
+    // Initialize syntax highlighting when component mounts or code changes or tab changes
+    useEffect(() => {
+        if (formData.poc_code && codeTab === "preview") {
+            setTimeout(() => {
+                hljs.highlightAll();
+            }, 50);
+        }
+    }, [formData.poc_code, codeTab]);
+
+    // Fetch projects for the dropdown with better error handling
+    const { data: projects = [], isLoading: isLoadingProjects, error: projectsQueryError } = useQuery({
         queryKey: ["projects"],
         queryFn: async () => {
+            setLoadingProjects(true);
+            setProjectsError("");
             try {
-                const response = await axios.get("/api/projects");
-                return response.data;
-            } catch (error) {
-                console.error("Failed to fetch projects:", error);
-                return [];
+                // Get token from localStorage if available
+                const token = localStorage.getItem('token') || localStorage.getItem('access_token');
+
+                // Include skip/limit parameters and auth header
+                const response = await axios.get("/api/projects", {
+                    params: {
+                        skip: 0,
+                        limit: 100
+                    },
+                    headers: token ? {
+                        'Authorization': `Bearer ${token}`
+                    } : undefined
+                });
+
+                // Log response to help debug
+                console.log('Projects response:', response.data);
+
+                if (!response.data || !Array.isArray(response.data) || response.data.length === 0) {
+                    console.warn('No projects returned from API');
+                    setProjectsError("No projects found. Please create a project first.");
+                }
+
+                return response.data || [];
+            } catch (apiError: any) {
+                console.error("Failed to fetch projects:", apiError);
+                const errorMsg = apiError.response?.data?.error || "Failed to load projects";
+                setProjectsError(errorMsg);
+                throw apiError;
+            } finally {
+                setLoadingProjects(false);
             }
-        }
+        },
+        retry: 1, // Retry once if failed
     });
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -139,18 +187,38 @@ export default function CreateVulnerabilityPage() {
                                     name="project_id"
                                     value={formData.project_id}
                                     onValueChange={(value) => handleSelectChange("project_id", value)}
+                                    disabled={loadingProjects || projects.length === 0}
                                 >
                                     <SelectTrigger>
-                                        <SelectValue placeholder="Select a project" />
+                                        <SelectValue placeholder={
+                                            loadingProjects
+                                                ? "Loading projects..."
+                                                : projectsError
+                                                    ? "Error loading projects"
+                                                    : projects.length === 0
+                                                        ? "No projects available"
+                                                        : "Select a project"
+                                        } />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {projects.map((project: any) => (
-                                            <SelectItem key={project.id} value={project.id}>
-                                                {project.name}
-                                            </SelectItem>
-                                        ))}
+                                        {projectsError ? (
+                                            <div className="py-2 px-1 text-red-500 text-sm">{projectsError}</div>
+                                        ) : projects.length === 0 ? (
+                                            <div className="py-2 px-1 text-muted-foreground text-sm">
+                                                No projects available. Please create a project first.
+                                            </div>
+                                        ) : (
+                                            projects.map((project: any) => (
+                                                <SelectItem key={project.id} value={project.id}>
+                                                    {project.name}
+                                                </SelectItem>
+                                            ))
+                                        )}
                                     </SelectContent>
                                 </Select>
+                                {projectsError && (
+                                    <p className="text-sm text-red-500">{projectsError}</p>
+                                )}
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -196,15 +264,58 @@ export default function CreateVulnerabilityPage() {
 
                             <div className="space-y-2">
                                 <Label htmlFor="description_md">Description (Markdown) *</Label>
-                                <Textarea
-                                    id="description_md"
-                                    name="description_md"
-                                    placeholder="Describe the vulnerability in detail, using markdown for formatting..."
-                                    rows={10}
-                                    value={formData.description_md}
-                                    onChange={handleInputChange}
-                                    required
-                                />
+                                <Tabs value={markdownTab} onValueChange={setMarkdownTab} className="w-full">
+                                    <TabsList className="mb-2">
+                                        <TabsTrigger value="edit">Edit</TabsTrigger>
+                                        <TabsTrigger value="preview">Preview</TabsTrigger>
+                                    </TabsList>
+                                    <TabsContent value="edit">
+                                        <Textarea
+                                            id="description_md"
+                                            name="description_md"
+                                            placeholder="Describe the vulnerability in detail, using markdown for formatting..."
+                                            rows={10}
+                                            value={formData.description_md}
+                                            onChange={handleInputChange}
+                                            required
+                                        />
+                                    </TabsContent>
+                                    <TabsContent value="preview">
+                                        {formData.description_md ? (
+                                            <div className="prose prose-sm max-w-none dark:prose-invert border rounded-md p-4 min-h-[250px] overflow-y-auto bg-background">
+                                                <ReactMarkdown
+                                                    rehypePlugins={[rehypeRaw, rehypeSanitize]}
+                                                    remarkPlugins={[remarkGfm]}
+                                                    components={{
+                                                        // @ts-ignore - ReactMarkdown types can be problematic with custom components
+                                                        code({ node, inline, className, children, ...props }) {
+                                                            const match = /language-(\w+)/.exec(className || '');
+                                                            return !inline && match ? (
+                                                                <div className="relative">
+                                                                    <pre className="rounded-md p-4 my-2 overflow-auto">
+                                                                        <code className={className} {...props}>
+                                                                            {children}
+                                                                        </code>
+                                                                    </pre>
+                                                                </div>
+                                                            ) : (
+                                                                <code className={className} {...props}>
+                                                                    {children}
+                                                                </code>
+                                                            );
+                                                        }
+                                                    }}
+                                                >
+                                                    {formData.description_md}
+                                                </ReactMarkdown>
+                                            </div>
+                                        ) : (
+                                            <div className="text-muted-foreground italic border rounded-md p-4 min-h-[250px] flex items-center justify-center">
+                                                No description to preview
+                                            </div>
+                                        )}
+                                    </TabsContent>
+                                </Tabs>
                                 <p className="text-sm text-muted-foreground">
                                     You can use Markdown to format your description. Add headers, lists, code blocks, etc.
                                 </p>
@@ -232,14 +343,38 @@ export default function CreateVulnerabilityPage() {
 
                             <div className="space-y-2">
                                 <Label htmlFor="poc_code">Proof of Concept Code</Label>
-                                <Textarea
-                                    id="poc_code"
-                                    name="poc_code"
-                                    placeholder="Add your proof of concept code or steps to reproduce..."
-                                    rows={6}
-                                    value={formData.poc_code}
-                                    onChange={handleInputChange}
-                                />
+                                <Tabs value={codeTab} onValueChange={setCodeTab} className="w-full">
+                                    <TabsList className="mb-2">
+                                        <TabsTrigger value="edit">Edit</TabsTrigger>
+                                        <TabsTrigger value="preview">Preview</TabsTrigger>
+                                    </TabsList>
+                                    <TabsContent value="edit">
+                                        <Textarea
+                                            id="poc_code"
+                                            name="poc_code"
+                                            placeholder="Add your proof of concept code or steps to reproduce..."
+                                            rows={6}
+                                            value={formData.poc_code}
+                                            onChange={handleInputChange}
+                                            className="font-mono"
+                                        />
+                                    </TabsContent>
+                                    <TabsContent value="preview">
+                                        {formData.poc_code ? (
+                                            <div className="border rounded-md p-4 min-h-[150px] overflow-auto bg-background">
+                                                <pre className="m-0 p-0">
+                                                    <code className={`language-${formData.poc_type}`}>
+                                                        {formData.poc_code}
+                                                    </code>
+                                                </pre>
+                                            </div>
+                                        ) : (
+                                            <div className="text-muted-foreground italic border rounded-md p-4 min-h-[150px] flex items-center justify-center">
+                                                No code to preview
+                                            </div>
+                                        )}
+                                    </TabsContent>
+                                </Tabs>
                             </div>
                         </CardContent>
                         <CardFooter className="flex justify-between">

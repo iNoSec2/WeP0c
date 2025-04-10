@@ -140,7 +140,7 @@ class UserLogin(BaseModel):
 class UserOut(BaseModel):
     id: UUID
     email: EmailStr
-    full_name: str
+    full_name: Optional[str] = None
     is_active: bool = True
     role: Role
     company: Optional[str] = None
@@ -156,7 +156,7 @@ class UserOut(BaseModel):
 class ClientResponse(BaseModel):
     id: UUID
     email: EmailStr
-    full_name: str
+    full_name: Optional[str] = None
     is_active: bool = True
     role: Role = Role.CLIENT
     company: Optional[str] = None
@@ -167,7 +167,7 @@ class ClientResponse(BaseModel):
 class PentesterResponse(BaseModel):
     id: UUID
     email: EmailStr
-    full_name: str
+    full_name: Optional[str] = None
     is_active: bool = True
     role: Role = Role.PENTESTER
     specialities: List[Speciality] = []
@@ -186,7 +186,7 @@ class ProjectBase(BaseModel):
 class UserProfile(BaseModel):
     id: int
     email: EmailStr
-    full_name: str
+    full_name: Optional[str] = None
     company: Optional[str] = None
     bio: Optional[str] = None
     avatar_url: Optional[str] = None

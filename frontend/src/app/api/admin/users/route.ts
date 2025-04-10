@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import axios from 'axios';
-import { getBackendURL } from '@/lib/api';
+import apiService from '@/lib/api/apiService';
+import { getToken } from '@/lib/api';
 import { loginToBackend } from '@/lib/api/loginUtil';
 
 // Helper function to get token
@@ -17,31 +17,34 @@ const getTokenFromRequest = (request: Request) => {
     return token || headerToken;
 };
 
+/**
+ * Get service account token when needed
+ */
+async function getServiceToken() {
+    try {
+        // Use environment variables for service account credentials
+        const serviceEmail = process.env.SERVICE_ACCOUNT_EMAIL || 'admin@example.com';
+        const servicePassword = process.env.SERVICE_ACCOUNT_PASSWORD || 'admin123';
+
+        // Login to get a valid token
+        const authResponse = await loginToBackend(serviceEmail, servicePassword);
+        console.log('Successfully obtained service token');
+        return authResponse.access_token;
+    } catch (error) {
+        console.error('Failed to obtain service token:', error);
+        return null;
+    }
+}
+
 export async function GET(request: Request) {
     try {
+        // Get token from request or service account if needed
         let finalToken = getTokenFromRequest(request);
-
-        // If no token is available, try to login with service account
         if (!finalToken) {
-            try {
-                // Use environment variables for service account credentials
-                const serviceEmail = process.env.SERVICE_ACCOUNT_EMAIL || 'admin@example.com';
-                const servicePassword = process.env.SERVICE_ACCOUNT_PASSWORD || 'admin123';
-
-                // Login to get a valid token
-                const authResponse = await loginToBackend(serviceEmail, servicePassword);
-                finalToken = authResponse.access_token;
-
-                console.log('Successfully obtained service token for admin operations');
-            } catch (loginError) {
-                console.error('Failed to obtain service token:', loginError);
-                return NextResponse.json(
-                    { error: 'Authentication failed' },
-                    { status: 401 }
-                );
-            }
+            finalToken = await getServiceToken();
         }
 
+        // If still no token, return unauthorized
         if (!finalToken) {
             return NextResponse.json(
                 { error: 'Unauthorized - No valid token found' },
@@ -49,86 +52,23 @@ export async function GET(request: Request) {
             );
         }
 
-        // First try to get the main backend URL
-        const backendURL = getBackendURL();
-        console.log('Fetching users from backend:', `${backendURL}/api/admin/users`);
+        // Use the centralized API service to fetch users
+        const response = await apiService.get('/api/users');
 
-        // Try multiple endpoint patterns to handle potential backend variations
-        const endpoints = [
-            `${backendURL}/api/admin/users`,
-            `${backendURL}/api/admin/user`,
-            'http://api:8001/api/admin/users', // Direct container name if Next.js on server
-            'http://127.0.0.1:8001/api/admin/users' // Direct IP address for local development
-        ];
-
-        let lastError = null;
-
-        // Try each endpoint until one works
-        for (const endpoint of endpoints) {
-            try {
-                console.log(`Trying endpoint: ${endpoint}`);
-                const response = await axios.get(endpoint, {
-                    headers: {
-                        'Authorization': `Bearer ${finalToken}`
-                    },
-                    timeout: 3000 // Timeout after 3 seconds
-                });
-
-                console.log(`Successful response from ${endpoint}`);
-                return NextResponse.json(response.data);
-            } catch (error: any) {
-                console.log(`Endpoint ${endpoint} failed:`, error.message);
-                lastError = error;
-                // Continue to the next endpoint
-            }
-        }
-
-        // If we're here, all endpoints failed
-        console.error('All backend endpoints failed:', lastError?.message);
-
-        // For development, provide mock data
-        if (process.env.NODE_ENV === 'development') {
-            console.log('Development mode: Returning mock user data');
-            return NextResponse.json([
+        if (response.success) {
+            return NextResponse.json(response.data);
+        } else {
+            // Handle errors with appropriate status code
+            return NextResponse.json(
                 {
-                    id: '00000000-0000-4000-a000-000000000001',
-                    username: 'admin',
-                    email: 'admin@example.com',
-                    full_name: 'Admin User',
-                    role: 'SUPER_ADMIN',
-                    is_active: true
+                    error: response.error?.message || 'Failed to fetch users',
+                    details: response.error?.details
                 },
-                {
-                    id: '00000000-0000-4000-a000-000000000002',
-                    username: 'pentester1',
-                    email: 'pentester1@example.com',
-                    full_name: 'Security Tester',
-                    role: 'PENTESTER',
-                    is_active: true
-                },
-                {
-                    id: '00000000-0000-4000-a000-000000000003',
-                    username: 'client1',
-                    email: 'client1@example.com',
-                    full_name: 'Client User',
-                    role: 'CLIENT',
-                    is_active: true
-                }
-            ]);
+                { status: response.error?.code || 500 }
+            );
         }
-
-        // Return proper error response
-        const status = lastError?.response?.status || 500;
-        const message = lastError?.response?.data?.detail || 'Failed to fetch users';
-
-        return NextResponse.json(
-            { error: message },
-            { status: status }
-        );
-    } catch (error: any) {
-        console.error('Error in admin users request:', error);
-
-        // Return proper error response
+    } catch (error) {
+        console.error('Unexpected error in admin users request:', error);
         return NextResponse.json(
             { error: 'Failed to process admin users request' },
             { status: 500 }
@@ -138,29 +78,13 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
     try {
+        // Get token from request or service account if needed
         let finalToken = getTokenFromRequest(request);
-
-        // If no token is available, try to login with service account
         if (!finalToken) {
-            try {
-                // Use environment variables for service account credentials
-                const serviceEmail = process.env.SERVICE_ACCOUNT_EMAIL || 'admin@example.com';
-                const servicePassword = process.env.SERVICE_ACCOUNT_PASSWORD || 'admin123';
-
-                // Login to get a valid token
-                const authResponse = await loginToBackend(serviceEmail, servicePassword);
-                finalToken = authResponse.access_token;
-
-                console.log('Successfully obtained service token for admin operations');
-            } catch (loginError) {
-                console.error('Failed to obtain service token:', loginError);
-                return NextResponse.json(
-                    { error: 'Authentication failed' },
-                    { status: 401 }
-                );
-            }
+            finalToken = await getServiceToken();
         }
 
+        // If still no token, return unauthorized
         if (!finalToken) {
             return NextResponse.json(
                 { error: 'Unauthorized - No valid token found' },
@@ -169,80 +93,30 @@ export async function POST(request: Request) {
         }
 
         // Parse the request body
-        const body = await request.json();
-        console.log('Creating user with data:', body);
+        const userData = await request.json();
+        console.log('Creating user with data:', userData);
 
-        // Ensure role is set
-        if (!body.role) {
-            body.role = 'USER'; // Default role if none provided
+        // Use the centralized API service to create the user
+        const response = await apiService.post('/api/users', userData);
+
+        if (response.success) {
+            // Return successful creation with 201 status
+            return NextResponse.json(response.data, { status: 201 });
+        } else {
+            // Return error with appropriate status code
+            return NextResponse.json(
+                {
+                    error: response.error?.message || 'Failed to create user',
+                    details: response.error?.details
+                },
+                { status: response.error?.code || 500 }
+            );
         }
-
-        // First try to get the main backend URL
-        const backendURL = getBackendURL();
-
-        // Try multiple endpoint patterns to handle potential backend variations
-        const endpoints = [
-            `${backendURL}/api/admin/user`, // This is the correct one based on backend code
-            `${backendURL}/api/admin/users`,
-            'http://api:8001/api/admin/user', // Direct container name if Next.js on server
-            'http://127.0.0.1:8001/api/admin/user' // Direct IP address for local development
-        ];
-
-        let lastError = null;
-
-        // Try each endpoint until one works
-        for (const endpoint of endpoints) {
-            try {
-                console.log(`Trying to create user at endpoint: ${endpoint}`);
-                const response = await axios.post(endpoint, body, {
-                    headers: {
-                        'Authorization': `Bearer ${finalToken}`,
-                        'Content-Type': 'application/json'
-                    },
-                    timeout: 3000 // Timeout after 3 seconds
-                });
-
-                console.log(`User successfully created at ${endpoint}`);
-                return NextResponse.json(response.data, { status: 201 });
-            } catch (error: any) {
-                console.log(`Endpoint ${endpoint} failed:`, error.message);
-                lastError = error;
-                // Continue to the next endpoint
-            }
-        }
-
-        // If we're here, all endpoints failed
-        console.error('All backend endpoints failed for user creation:', lastError?.message);
-
-        // For development, provide mock response
-        if (process.env.NODE_ENV === 'development') {
-            console.log('Development mode: Returning mock user creation response');
-            return NextResponse.json({
-                id: '00000000-0000-4000-a000-' + Math.floor(Math.random() * 1000000000000).toString().padStart(12, '0'),
-                username: body.username || 'newuser',
-                email: body.email || 'user@example.com',
-                full_name: body.full_name || '',
-                role: body.role || 'USER',
-                is_active: true,
-                created_at: new Date().toISOString()
-            }, { status: 201 });
-        }
-
-        // Return detailed error message for debugging
-        const status = lastError?.response?.status || 500;
-        const message = lastError?.response?.data?.detail || 'Failed to create user';
-
-        return NextResponse.json(
-            { error: message, details: lastError?.response?.data },
-            { status: status }
-        );
-    } catch (error: any) {
-        console.error('Error in user creation process:', error);
-
-        // Return proper error response
+    } catch (error) {
+        console.error('Unexpected error in user creation process:', error);
         return NextResponse.json(
             { error: 'Failed to process user creation request' },
             { status: 500 }
         );
     }
-} 
+}

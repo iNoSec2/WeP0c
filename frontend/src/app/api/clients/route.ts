@@ -45,19 +45,50 @@ export async function GET(request: Request) {
             );
         }
 
-        // Forward request to backend
-        const backendURL = getBackendURL();
-        console.log('Fetching clients from:', `${backendURL}/api/users/clients`);
+        // Forward request to backend - try multiple endpoints for robustness
+        const backendURL = 'http://api:8001'; // Always use Docker service name
+        const endpoints = [
+            `${backendURL}/api/users/clients`,
+            `${backendURL}/api/users?role=client`
+        ];
 
-        const response = await axios.get(`${backendURL}/api/users/clients`, {
-            headers: {
-                Authorization: `Bearer ${finalToken}`
+        let lastError = null;
+
+        // Try each endpoint until one works
+        for (const endpoint of endpoints) {
+            try {
+                console.log(`Fetching clients from: ${endpoint}`);
+
+                const response = await axios.get(endpoint, {
+                    headers: {
+                        Authorization: `Bearer ${finalToken}`
+                    }
+                });
+
+                console.log(`Successfully fetched clients from ${endpoint}`);
+
+                // Transform the response data to handle UUID validation issues
+                if (Array.isArray(response.data)) {
+                    const transformedData = response.data.map(client => ({
+                        ...client,
+                        // Ensure ID is a string
+                        id: client.id ? client.id.toString() : client.id,
+                        // Add placeholder for missing updated_at
+                        updated_at: client.updated_at || client.created_at || new Date().toISOString()
+                    }));
+                    return NextResponse.json(transformedData);
+                }
+
+                return NextResponse.json(response.data);
+            } catch (error) {
+                console.error(`Error fetching clients from ${endpoint}:`, error);
+                lastError = error;
+                // Continue to next endpoint
             }
-        });
+        }
 
-        return NextResponse.json(response.data);
-    } catch (error: any) {
-        console.error('Error fetching clients:', error);
+        // If we reach here, all endpoints failed
+        console.error('All endpoints failed for client data fetching');
 
         // For development, return mock client data if API fails
         if (process.env.NODE_ENV === 'development') {
@@ -82,7 +113,13 @@ export async function GET(request: Request) {
 
         return NextResponse.json(
             { error: 'Failed to fetch clients' },
-            { status: error.response?.status || 500 }
+            { status: lastError?.response?.status || 500 }
+        );
+    } catch (error: any) {
+        console.error('Error fetching clients:', error);
+        return NextResponse.json(
+            { error: 'Failed to fetch clients' },
+            { status: 500 }
         );
     }
 }
@@ -131,29 +168,95 @@ export async function POST(request: Request) {
 
         // Parse the request body
         const body = await request.json();
-        const { username, password, email, company } = body;
+        const { username, password, email, company, full_name } = body;
 
-        // Forward request to backend
-        const backendURL = getBackendURL();
-        console.log('Creating client:', { username, email, company });
+        // Use a simpler approach - create a standard user with client role
+        const backendURL = 'http://api:8001'; // Always use Docker service name
 
-        const response = await axios.post(`${backendURL}/api/users/clients`, {
-            username,
-            password,
-            email
-        }, {
-            headers: {
-                Authorization: `Bearer ${finalToken}`,
-                'Content-Type': 'application/json'
+        try {
+            console.log('Creating client user:', { username, email, role: 'CLIENT' });
+
+            // Create a new user with the client role (always uppercase)
+            const response = await axios.post(`${backendURL}/api/users`, {
+                username,
+                password,
+                email,
+                role: 'CLIENT' // Always use uppercase for role
+            }, {
+                headers: {
+                    Authorization: `Bearer ${finalToken}`,
+                    'Content-Type': 'application/json'
+                },
+                validateStatus: function (status) {
+                    // Don't throw for 4xx errors so we can handle them
+                    return status < 500;
+                }
+            });
+
+            // Check for error responses
+            if (response.status >= 400) {
+                const errorMessage = response.data?.detail || 'Failed to create client';
+
+                // Special handling for common errors
+                if (response.status === 400 &&
+                    (response.data?.detail === 'Username already registered' ||
+                        response.data?.detail === 'Email already registered')) {
+                    return NextResponse.json(
+                        {
+                            error: response.data.detail,
+                            message: "This username or email is already in use. Please try a different one."
+                        },
+                        { status: 400 }
+                    );
+                }
+
+                return NextResponse.json(
+                    { error: errorMessage },
+                    { status: response.status }
+                );
             }
-        });
 
-        return NextResponse.json(response.data, { status: 201 });
+            // If additional client fields are provided, update the user
+            const userId = response.data.id;
+            if (userId && (company || full_name)) {
+                console.log(`Updating client ${userId} with additional fields`);
+                await axios.patch(`${backendURL}/api/users/${userId}`, {
+                    company,
+                    full_name
+                }, {
+                    headers: {
+                        Authorization: `Bearer ${finalToken}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+            }
+
+            // Transform the response data to handle UUID validation issues
+            const transformedData = {
+                ...response.data,
+                id: response.data.id ? response.data.id.toString() : response.data.id,
+                updated_at: response.data.updated_at || response.data.created_at || new Date().toISOString(),
+                company,
+                full_name
+            };
+
+            return NextResponse.json(transformedData, { status: 201 });
+        } catch (error: any) {
+            console.error('Error creating client:', error);
+
+            const errorMessage = error.response?.data?.detail || 'Failed to create client';
+            const statusCode = error.response?.status || 500;
+
+            return NextResponse.json({
+                error: errorMessage,
+                message: "Unable to create client. Please verify the information and try again."
+            }, { status: statusCode });
+        }
     } catch (error: any) {
-        console.error('Error creating client:', error);
+        console.error('Error processing client creation request:', error);
         return NextResponse.json(
-            { error: error.response?.data?.detail || 'Failed to create client' },
-            { status: error.response?.status || 500 }
+            { error: 'Failed to process client creation request' },
+            { status: 500 }
         );
     }
 }
