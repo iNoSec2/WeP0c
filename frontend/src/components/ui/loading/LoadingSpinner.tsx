@@ -23,9 +23,9 @@ export function LoadingSpinner({
   };
 
   const colorClasses = {
-    primary: 'border-primary/20 border-t-primary',
-    secondary: 'border-secondary/20 border-t-secondary',
-    success: 'border-green-500/20 border-t-green-500',
+    primary: 'border-black/20 dark:border-white/20 border-t-black dark:border-t-white',
+    secondary: 'border-black/20 dark:border-white/20 border-t-black dark:border-t-white',
+    success: 'border-black/20 dark:border-white/20 border-t-black dark:border-t-white',
     destructive: 'border-destructive/20 border-t-destructive',
   };
 
@@ -67,7 +67,7 @@ export function FallbackSpinner({
         <div className={cn('rounded-full', sizeClasses[size], className)}>
           <div className={`absolute inset-0 rounded-full border-2 border-muted`} />
           <div
-            className={`absolute inset-0 rounded-full border-2 border-t-primary border-r-transparent border-b-transparent border-l-transparent animate-spin`}
+            className={`absolute inset-0 rounded-full border-2 border-t-black dark:border-t-white border-r-transparent border-b-transparent border-l-transparent animate-spin`}
             style={{ animationDuration: '0.8s' }}
           />
         </div>

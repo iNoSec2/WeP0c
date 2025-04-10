@@ -17,6 +17,7 @@ export interface Project {
         username: string;
         email?: string;
     };
+    pentester_ids?: string[];
     pentesters: Array<{
         id: string;
         username: string;
@@ -28,4 +29,4 @@ export interface Project {
         severity: string;
         status: string;
     }>;
-} 
+}

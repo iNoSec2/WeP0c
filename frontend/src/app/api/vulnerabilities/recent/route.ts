@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { adminClient } from '@/lib/api/adminClient';
+import axios from 'axios';
+import { getBackendURL } from '@/lib/api';
 
 export async function GET(request: Request) {
     try {
@@ -21,17 +23,25 @@ export async function GET(request: Request) {
             return NextResponse.json([], { status: 200 });
         }
 
-        // Use the final token in the Authorization header
-        const vulnerabilities = await adminClient.get('/api/vulnerabilities/recent', undefined, {
+        // Get the backend URL
+        const backendURL = getBackendURL();
+        console.log(`Fetching recent vulnerabilities from: ${backendURL}/api/recent`);
+
+        // Use axios directly for better error handling
+        const response = await axios.get(`${backendURL}/api/recent`, {
             headers: {
-                'Authorization': `Bearer ${finalToken}`
+                'Authorization': `Bearer ${finalToken}`,
+                'Content-Type': 'application/json'
             }
         });
 
-        return NextResponse.json(vulnerabilities);
+        // Log the response for debugging
+        console.log('Recent vulnerabilities response:', response.status);
+
+        return NextResponse.json(response.data);
     } catch (error: any) {
         console.error('Error fetching recent vulnerabilities:',
-            error.details || error.message || 'Unknown error');
+            error.response?.data?.detail || error.message || 'Unknown error');
 
         // Return empty array instead of error for smooth UI rendering
         return NextResponse.json([], { status: 200 });

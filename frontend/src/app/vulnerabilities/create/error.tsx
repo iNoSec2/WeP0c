@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import Link from 'next/link';
 
-export default function VulnerabilityDetailError({
+export default function VulnerabilityCreateError({
     error,
     reset,
 }: {
@@ -12,15 +12,15 @@ export default function VulnerabilityDetailError({
 }) {
     useEffect(() => {
         // Log the error to an error reporting service
-        console.error('Vulnerability detail error:', error);
+        console.error('Vulnerability creation error:', error);
     }, [error]);
 
     return (
         <div className="container mx-auto p-6 flex flex-col items-center justify-center min-h-[60vh]">
             <div className="p-6 border rounded-lg shadow-md bg-white w-full max-w-lg">
-                <h2 className="text-2xl font-bold text-red-600 mb-4">Error Loading Vulnerability</h2>
+                <h2 className="text-2xl font-bold text-red-600 mb-4">Error Creating Vulnerability</h2>
                 <p className="text-gray-700 mb-6">
-                    We encountered an error while loading the vulnerability details.
+                    We encountered an error while creating the vulnerability.
                 </p>
                 <div className="bg-gray-100 p-4 rounded mb-6 overflow-auto">
                     <code className="text-sm text-red-500">

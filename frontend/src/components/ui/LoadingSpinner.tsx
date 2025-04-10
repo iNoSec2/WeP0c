@@ -22,9 +22,9 @@ const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
 
     // Color variants
     const colorClasses = {
-        primary: 'border-blue-600 border-t-transparent',
-        secondary: 'border-gray-600 border-t-transparent',
-        white: 'border-white border-t-transparent'
+        primary: 'border-black dark:border-white border-t-black dark:border-t-white',
+        secondary: 'border-black dark:border-white border-t-black dark:border-t-white',
+        white: 'border-white border-t-white'
     };
 
     // Container classes for full screen or inline
@@ -46,4 +46,4 @@ const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
     );
 };
 
-export default LoadingSpinner; 
+export default LoadingSpinner;

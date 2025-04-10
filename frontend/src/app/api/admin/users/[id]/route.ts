@@ -33,14 +33,36 @@ async function callBackendUserAPI(id: string, token: string, method: string, bod
     console.log('Using token:', token ? `${token.substring(0, 10)}...` : 'NO TOKEN');
 
     try {
+        // Extract role from token for role-based permissions
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => {
+            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+        const payload = JSON.parse(jsonPayload);
+        const userRole = payload.role;
+
+        console.log('Admin API - User role from token:', userRole);
+
+        // Create headers with role override for super admins
+        const headers: Record<string, string> = {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        };
+
+        // Add override headers for SUPER_ADMIN users
+        if (userRole === 'SUPER_ADMIN') {
+            console.log('Adding X-Override-Role header for SUPER_ADMIN user');
+            headers['X-Override-Role'] = 'true';
+            headers['X-Admin-Access'] = 'true';
+            headers['X-Admin-Override'] = 'true';
+        }
+
         const config = {
             method,
             url,
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-            },
+            headers,
             data: method !== 'GET' ? body : undefined,
             timeout: 15000
         };
@@ -170,4 +192,4 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
             { status }
         );
     }
-} 
+}

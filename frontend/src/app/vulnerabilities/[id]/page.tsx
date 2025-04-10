@@ -12,7 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { formatDate } from '@/lib/utils';
 import { useToast } from '@/components/ui/use-toast';
-import { Play, ArrowLeft, Edit, Trash2 } from 'lucide-react';
+import { Play, ArrowLeft, Edit, Trash2, CheckCircle, XCircle, AlertTriangle, AlertCircle, FileText, Code } from 'lucide-react';
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 export default function VulnerabilityDetailPage() {
@@ -33,8 +33,19 @@ export default function VulnerabilityDetailPage() {
     queryKey: ['vulnerability', vulnerabilityId],
     queryFn: async () => {
       console.log(`Fetching vulnerability with ID: ${vulnerabilityId}`);
-      const response = await axios.get(`/api/vulnerabilities/${vulnerabilityId}`);
-      return response.data;
+      try {
+        const response = await axios.get(`/api/vulnerabilities/${vulnerabilityId}`);
+        console.log('Vulnerability data received:', response.data);
+        return response.data;
+      } catch (error: any) {
+        console.error('Error fetching vulnerability:', error.response?.data || error.message);
+        toast({
+          title: 'Error fetching vulnerability',
+          description: error.response?.data?.error || 'Could not load vulnerability details',
+          variant: 'destructive',
+        });
+        throw error;
+      }
     },
     retry: 2, // Retry failed requests up to 2 times
   });
@@ -165,17 +176,37 @@ export default function VulnerabilityDetailPage() {
     return (
       <DashboardLayout>
         <div className="container p-6 mx-auto">
-          <div className="flex flex-col items-center justify-center py-10">
-            <p className="text-lg text-center mb-4">
-              {vulnerabilityError
-                ? `Error: ${(vulnerabilityError as any)?.response?.data?.error || 'Failed to load vulnerability'}`
-                : 'Vulnerability not found'
-              }
-            </p>
-            <Button asChild>
-              <a href="/vulnerabilities">Back to Vulnerabilities</a>
+          <div className="flex items-center space-x-2 mb-6">
+            <Button variant="outline" onClick={() => router.back()}>
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back
             </Button>
           </div>
+          <Card className="w-full">
+            <CardHeader>
+              <CardTitle className="text-red-500">Error Loading Vulnerability</CardTitle>
+              <CardDescription>
+                {vulnerabilityError
+                  ? `There was a problem loading this vulnerability. You may not have permission to view it.`
+                  : 'Vulnerability not found'
+                }
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="mb-4">
+                {vulnerabilityError
+                  ? `Error: ${typeof vulnerabilityError === 'string' ? vulnerabilityError :
+                      ((vulnerabilityError as any)?.response?.data?.error || 'Failed to load vulnerability')}`
+                  : 'The requested vulnerability could not be found.'
+                }
+              </p>
+              <Button
+                onClick={() => router.push('/vulnerabilities')}
+              >
+                Return to Vulnerabilities
+              </Button>
+            </CardContent>
+          </Card>
         </div>
       </DashboardLayout>
     );
@@ -232,7 +263,11 @@ export default function VulnerabilityDetailPage() {
                 </TabsList>
                 <TabsContent value="description" className="mt-4">
                   <div className="prose prose-sm max-w-none dark:prose-invert">
-                    <MarkdownDisplay content={vulnerability.description_md} />
+                    {vulnerability.description_html ? (
+                      <div dangerouslySetInnerHTML={{ __html: vulnerability.description_html }} />
+                    ) : (
+                      <MarkdownDisplay content={vulnerability.description} />
+                    )}
                   </div>
                 </TabsContent>
                 <TabsContent value="poc" className="mt-4">
@@ -265,16 +300,40 @@ export default function VulnerabilityDetailPage() {
                             : 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900'
                             }`}>
                             <div className="flex justify-between mb-2">
-                              <span className="font-medium">
+                              <span className="font-medium flex items-center">
+                                {executionResult.success
+                                  ? <CheckCircle className="h-4 w-4 mr-2 text-green-500" />
+                                  : <XCircle className="h-4 w-4 mr-2 text-red-500" />}
                                 {executionResult.success ? 'Success' : 'Failed'}
                               </span>
                               <span className="text-sm">
                                 Exit code: {executionResult.exit_code}
                               </span>
                             </div>
-                            <pre className="text-sm font-mono whitespace-pre-wrap">
-                              {executionResult.output}
-                            </pre>
+
+                            {/* Error message for common issues */}
+                            {!executionResult.success && executionResult.output && executionResult.output.includes("No such file or directory") && (
+                              <div className="mb-3 p-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded text-sm">
+                                <div className="flex items-start">
+                                  <AlertTriangle className="h-4 w-4 mr-2 text-amber-500 mt-0.5" />
+                                  <div>
+                                    <p className="font-medium">File not found error detected</p>
+                                    <p>This error typically occurs when the PoC file cannot be accessed. Try the following:</p>
+                                    <ul className="list-disc ml-5 mt-1">
+                                      <li>Check that your code references files correctly</li>
+                                      <li>If using external files, upload them as a ZIP attachment</li>
+                                      <li>Make sure file paths are relative to the PoC script</li>
+                                    </ul>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+
+                            <div className="overflow-auto max-h-96 border border-gray-200 dark:border-gray-700 rounded-md bg-gray-50 dark:bg-gray-900">
+                              <pre className="text-sm font-mono whitespace-pre-wrap p-3">
+                                {executionResult.output || 'No output received from execution'}
+                              </pre>
+                            </div>
                           </div>
                         </div>
                       )}

@@ -82,7 +82,7 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({ message }) => {
             <Shield
               size={56}
               className={cn(
-                "text-primary",
+                "text-black dark:text-white",
                 "pulse-animation"
               )}
             />
@@ -92,7 +92,7 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({ message }) => {
 
         <div className="loading-progress">
           <motion.div
-            className="loading-progress-bar"
+            className="loading-progress-bar bg-black dark:bg-white"
             initial={{ width: "0%" }}
             animate={{ width: `${progress}%` }}
             transition={{ duration: 0.3 }}

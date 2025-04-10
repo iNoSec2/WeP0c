@@ -46,6 +46,7 @@ export default function ProjectsPage() {
     const [formData, setFormData] = useState({
         name: "",
         client_id: "",
+        pentester_id: "",
         status: "pending",
         start_date: "",
         end_date: "",
@@ -68,6 +69,14 @@ export default function ProjectsPage() {
         },
     });
 
+    const { data: pentesters = [] } = useQuery({
+        queryKey: ["pentesters"],
+        queryFn: async () => {
+            const response = await axios.get("/api/users/pentesters");
+            return response.data;
+        },
+    });
+
     const createProjectMutation = useMutation({
         mutationFn: async (data: typeof formData) => {
             const response = await axios.post("/api/projects", data);
@@ -79,6 +88,7 @@ export default function ProjectsPage() {
             setFormData({
                 name: "",
                 client_id: "",
+                pentester_id: "",
                 status: "pending",
                 start_date: "",
                 end_date: "",
@@ -157,6 +167,17 @@ export default function ProjectsPage() {
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
+
+        // Validate required fields
+        if (!formData.name || !formData.client_id || !formData.pentester_id) {
+            toast({
+                title: "Validation Error",
+                description: "Please fill all required fields: Project Name, Client, and Lead Pentester",
+                variant: "destructive",
+            });
+            return;
+        }
+
         createProjectMutation.mutate(formData);
     };
 
@@ -193,14 +214,44 @@ export default function ProjectsPage() {
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="client_id">Client</Label>
-                                    <Input
-                                        id="client_id"
+                                    <Select
                                         value={formData.client_id}
-                                        onChange={(e) =>
-                                            setFormData((prev) => ({ ...prev, client_id: e.target.value }))
+                                        onValueChange={(value) =>
+                                            setFormData((prev) => ({ ...prev, client_id: value }))
+                                        }
+                                    >
+                                        <SelectTrigger id="client_id">
+                                            <SelectValue placeholder="Select client" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {clients.map((client: any) => (
+                                                <SelectItem key={client.id} value={client.id}>
+                                                    {client.username || client.email}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="pentester_id">Lead Pentester</Label>
+                                    <Select
+                                        value={formData.pentester_id}
+                                        onValueChange={(value) =>
+                                            setFormData((prev) => ({ ...prev, pentester_id: value }))
                                         }
                                         required
-                                    />
+                                    >
+                                        <SelectTrigger id="pentester_id">
+                                            <SelectValue placeholder="Select pentester" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {pentesters.map((pentester: any) => (
+                                                <SelectItem key={pentester.id} value={pentester.id}>
+                                                    {pentester.username || pentester.email}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="status">Status</Label>

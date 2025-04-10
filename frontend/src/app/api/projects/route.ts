@@ -135,13 +135,51 @@ export async function GET(request: Request) {
                     }
                 });
 
-                // Enhance project data with client information
-                const enhancedProjects = serializedProjects.map(project => ({
-                    ...project,
-                    client: clientMap[project.client_id] || null
-                }));
+                // Fetch pentesters to populate project data with pentester details
+                let pentesterMap = {};
+                try {
+                    const penterstersResponse = await safeRequest<any[]>({
+                        url: '/api/users?role=pentester',
+                        method: 'GET',
+                        ...requestOpts
+                    }, {
+                        retries: 2
+                    });
 
-                console.log(`Enhanced ${enhancedProjects.length} projects with client information`);
+                    // Create a map of pentester IDs to pentester objects
+                    pentesterMap = {};
+                    penterstersResponse.forEach(pentester => {
+                        if (pentester && pentester.id) {
+                            pentesterMap[pentester.id] = {
+                                id: pentester.id,
+                                username: pentester.username || 'Unknown',
+                                email: pentester.email
+                            };
+                        }
+                    });
+                } catch (pentesterError) {
+                    console.warn('Failed to fetch pentester details:', pentesterError.message);
+                }
+
+                // Enhance project data with client information and ensure pentesters and vulnerabilities arrays
+                const enhancedProjects = serializedProjects.map(project => {
+                    // Ensure pentesters array is properly initialized
+                    let pentesters = [];
+                    if (Array.isArray(project.pentester_ids)) {
+                        pentesters = project.pentester_ids
+                            .map(id => pentesterMap[id])
+                            .filter(p => p !== undefined);
+                    }
+
+                    return {
+                        ...project,
+                        client: clientMap[project.client_id] || null,
+                        pentesters: pentesters,
+                        vulnerabilities: Array.isArray(project.vulnerabilities) ? project.vulnerabilities : []
+                    };
+                });
+
+                console.log(`Enhanced ${enhancedProjects.length} projects with client and pentester information`);
                 return NextResponse.json(enhancedProjects);
             } catch (clientError) {
                 console.warn('Failed to fetch client details, returning projects without client info:', clientError.message);

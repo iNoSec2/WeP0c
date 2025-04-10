@@ -45,6 +45,7 @@ export default function AdminProjectsPage() {
   const [formData, setFormData] = useState({
     name: '',
     client_id: '',
+    pentester_id: '',
     status: ProjectStatus.PLANNING,
   });
   const [selectedProject, setSelectedProject] = useState<any | null>(null);
@@ -66,6 +67,14 @@ export default function AdminProjectsPage() {
     },
   });
 
+  const { data: pentesters = [], isLoading: pentestersLoading } = useQuery<User[]>({
+    queryKey: ['pentesters'],
+    queryFn: async () => {
+      const response = await axios.get('/api/users/pentesters');
+      return response.data;
+    },
+  });
+
   const createProjectMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
       const response = await axios.post('/api/projects', data);
@@ -77,6 +86,7 @@ export default function AdminProjectsPage() {
       setFormData({
         name: '',
         client_id: '',
+        pentester_id: '',
         status: ProjectStatus.PLANNING,
       });
       toast({
@@ -136,10 +146,10 @@ export default function AdminProjectsPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.name || !formData.client_id) {
+    if (!formData.name || !formData.client_id || !formData.pentester_id) {
       toast({
         title: 'Validation Error',
-        description: 'Please fill all required fields',
+        description: 'Please fill all required fields: Project Name, Client, and Lead Pentester',
         variant: 'destructive',
       });
       return;
@@ -206,6 +216,26 @@ export default function AdminProjectsPage() {
                         {clients.map((client) => (
                           <SelectItem key={client.id} value={client.id}>
                             {client.username} ({client.email})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <label htmlFor="pentester_id">Lead Pentester</label>
+                    <Select
+                      value={formData.pentester_id}
+                      onValueChange={(value) =>
+                        setFormData((prev) => ({ ...prev, pentester_id: value }))
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select pentester" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {pentesters.map((pentester) => (
+                          <SelectItem key={pentester.id} value={pentester.id}>
+                            {pentester.username} ({pentester.email})
                           </SelectItem>
                         ))}
                       </SelectContent>

@@ -55,12 +55,16 @@ interface Vulnerability {
     status: string;
     project_id: string;
     project_name: string;
-    description_md: string;
+    description: string;
     description_html?: string;
     poc_type?: string;
     poc_code?: string;
+    poc_html?: string;
     created_at: string;
     updated_at: string;
+    discovered_by?: string;
+    fixed_by?: string;
+    fixed_at?: string;
 }
 
 interface Project {
@@ -79,9 +83,10 @@ export default function VulnerabilitiesPage() {
         severity: "low",
         status: "open",
         project_id: "",
-        description_md: "",
+        description: "",
         poc_type: "python",
         poc_code: "",
+        poc_zip_path: "N/A",
     });
 
     const [activeTab, setActiveTab] = useState("description");
@@ -91,8 +96,17 @@ export default function VulnerabilitiesPage() {
     const { data: vulnerabilities = [], isLoading } = useQuery<Vulnerability[]>({
         queryKey: ["vulnerabilities"],
         queryFn: async () => {
-            const response = await axios.get("/api/vulnerabilities/recent");
-            return response.data;
+            try {
+                // Try to get all vulnerabilities first
+                const response = await axios.get("/api/vulnerabilities/all");
+                console.log('Fetched all vulnerabilities:', response.data.length);
+                return response.data;
+            } catch (error) {
+                console.error('Error fetching all vulnerabilities, falling back to recent:', error);
+                // Fall back to recent vulnerabilities if all fails
+                const fallbackResponse = await axios.get("/api/vulnerabilities/recent");
+                return fallbackResponse.data;
+            }
         },
     });
 
@@ -106,7 +120,33 @@ export default function VulnerabilitiesPage() {
 
     const createVulnerabilityMutation = useMutation({
         mutationFn: async (data: typeof formData) => {
-            const response = await axios.post("/api/vulnerabilities/", data);
+            console.log('Submitting vulnerability data to API:', data);
+
+            // Check if user is admin or super admin
+            const token = localStorage.getItem('token') || localStorage.getItem('access_token');
+            let isAdmin = false;
+
+            if (token) {
+                try {
+                    const payload = JSON.parse(atob(token.split('.')[1]));
+                    isAdmin = payload.role === 'SUPER_ADMIN' || payload.role === 'ADMIN';
+                    console.log(`User role: ${payload.role}, isAdmin: ${isAdmin}`);
+                } catch (e) {
+                    console.error('Error parsing token:', e);
+                }
+            }
+
+            // Add custom headers for admin users
+            const headers: Record<string, string> = {};
+
+            if (isAdmin) {
+                console.log('Adding admin override headers');
+                headers['X-Override-Role'] = 'true';
+                headers['X-Admin-Access'] = 'true';
+                headers['X-Admin-Override'] = 'true';
+            }
+
+            const response = await axios.post("/api/vulnerabilities", data, { headers });
             return response.data;
         },
         onSuccess: () => {
@@ -117,9 +157,10 @@ export default function VulnerabilitiesPage() {
                 severity: "low",
                 status: "open",
                 project_id: "",
-                description_md: "",
+                description: "",
                 poc_type: "python",
                 poc_code: "",
+                poc_zip_path: "N/A",
             });
             toast({
                 title: "Vulnerability created",
@@ -190,10 +231,10 @@ export default function VulnerabilitiesPage() {
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
 
-        if (!formData.title || !formData.project_id || !formData.description_md) {
+        if (!formData.title || !formData.project_id || !formData.description) {
             toast({
                 title: "Validation Error",
-                description: "Please fill all required fields",
+                description: "Please fill all required fields: title, description, and project",
                 variant: "destructive",
             });
             return;
@@ -328,11 +369,11 @@ export default function VulnerabilitiesPage() {
                                             <TabsTrigger value="poc">Proof of Concept</TabsTrigger>
                                         </TabsList>
                                         <TabsContent value="description" className="space-y-2 mt-2">
-                                            <label htmlFor="description_md">Description (Markdown)</label>
+                                            <label htmlFor="description">Description (Markdown)</label>
                                             <MarkdownEditor
-                                                value={formData.description_md}
+                                                value={formData.description}
                                                 onChange={(value) =>
-                                                    setFormData((prev) => ({ ...prev, description_md: value }))
+                                                    setFormData((prev) => ({ ...prev, description: value }))
                                                 }
                                                 height="300px"
                                             />

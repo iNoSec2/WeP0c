@@ -36,10 +36,17 @@ services:
     environment:
       - NEXT_PUBLIC_API_URL=http://localhost:8001
       - NODE_ENV=development
+      - FEATURES_DETAILED_ERRORS=${FEATURES_DETAILED_ERRORS:-true}
+      - ENABLE_POC_UPLOAD=${ENABLE_POC_UPLOAD:-true}
+      - ENABLE_POC_EXEC=${ENABLE_POC_EXEC:-false}
+      - DISABLE_NETWORK=${DISABLE_NETWORK:-true}
+      - MAX_UPLOAD_SIZE_MB=${MAX_UPLOAD_SIZE_MB:-50}
+      - ALLOWED_EXTENSIONS=${ALLOWED_EXTENSIONS:-jpg,jpeg,png,pdf,txt,md,zip}
     ports:
       - "3000:3000"
     depends_on:
-      - api
+      api:
+        condition: service_started
     restart: always
     networks:
       - p0cit-network
@@ -60,6 +67,12 @@ services:
       - "5432:5432"
     networks:
       - p0cit-network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-p0cit}" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   # Sandbox service for PoC execution (optional - can use Docker-in-Docker instead)
   sandbox:
@@ -71,6 +84,24 @@ services:
       - poc_uploads:/poc_data:ro # Read-only access to PoCs
     networks:
       - no-internet # Isolated network for security
+    healthcheck:
+      test: [ "CMD", "docker", "info" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    environment:
+      - DISABLE_NETWORK=${DISABLE_NETWORK:-true}
+    command: >
+      sh -c "
+        if [ \"$$DISABLE_NETWORK\" = \"true\" ]; then
+          echo 'Starting Docker daemon with network disabled';
+          dockerd-entrypoint.sh --iptables --ip6tables --userland-proxy=false;
+        else
+          echo 'Starting Docker daemon with network enabled';
+          dockerd-entrypoint.sh;
+        fi
+      "
 
 networks:
   p0cit-network:

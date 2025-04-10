@@ -5,16 +5,16 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { MarkdownDisplay } from './MarkdownEditor';
 import { Play, Code, FileText, AlertCircle } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import axios from 'axios';
+import ReactMarkdown from 'react-markdown';
 
 interface PocDisplayProps {
     vulnerability: {
         id: string;
         title: string;
-        description_md?: string;
+        description?: string;
         description_html?: string;
         poc_type?: string;
         poc_code?: string;
@@ -25,6 +25,9 @@ interface PocDisplayProps {
         project_name?: string;
         created_at?: string;
         updated_at?: string;
+        discovered_by?: string;
+        fixed_by?: string;
+        fixed_at?: string;
     };
     onExecute?: (result: any) => void;
     isExecuting?: boolean;
@@ -114,8 +117,10 @@ export const PocDisplay: React.FC<PocDisplayProps> = ({
                         {vulnerability.description_html ? (
                             <div className="prose prose-sm max-w-none dark:prose-invert"
                                 dangerouslySetInnerHTML={{ __html: vulnerability.description_html }} />
-                        ) : vulnerability.description_md ? (
-                            <MarkdownDisplay content={vulnerability.description_md} />
+                        ) : vulnerability.description ? (
+                            <div className="prose prose-sm max-w-none dark:prose-invert">
+                                <ReactMarkdown>{vulnerability.description}</ReactMarkdown>
+                            </div>
                         ) : (
                             <p className="text-muted-foreground">No description available.</p>
                         )}

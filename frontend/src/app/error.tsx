@@ -31,7 +31,7 @@ export default function GlobalError({
                                 <p className="text-red-600 mb-4 font-medium">An unexpected error occurred</p>
                                 <div className="bg-red-50 border border-red-200 rounded-md p-4 overflow-auto max-h-32">
                                     <code className="text-sm text-red-800 whitespace-pre-wrap">
-                                        {error.message || 'Unknown error'}
+                                        {typeof error.message === 'string' ? error.message : 'Complex error object - check console for details'}
                                     </code>
                                 </div>
                             </div>
@@ -56,4 +56,4 @@ export default function GlobalError({
             </body>
         </html>
     );
-} 
+}

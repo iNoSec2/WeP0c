@@ -39,6 +39,15 @@ export async function GET(request: Request) {
             );
         }
 
+        // Extract role from token for role-based permissions
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => {
+            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+        const payload = JSON.parse(jsonPayload);
+        const userRole = payload.role;
+
         // Get URL parameters
         const url = new URL(request.url);
         const skip = url.searchParams.get('skip') || '0';
@@ -55,14 +64,26 @@ export async function GET(request: Request) {
 
         console.log(`Admin API - Sending direct request to: ${backendEndpoint}`);
         console.log('Admin API - Token preview:', token.substring(0, 15) + '...');
+        console.log('Admin API - User role:', userRole);
+
+        // Create headers with role override for super admins
+        const headers: Record<string, string> = {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        };
+
+        // Add override headers for SUPER_ADMIN users
+        if (userRole === 'SUPER_ADMIN') {
+            console.log('Adding X-Override-Role header for SUPER_ADMIN user');
+            headers['X-Override-Role'] = 'true';
+            headers['X-Admin-Access'] = 'true';
+            headers['X-Admin-Override'] = 'true';
+        }
 
         // Make direct request to backend
         const response = await axios.get(backendEndpoint, {
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-            },
+            headers,
             timeout: 15000
         });
 
@@ -117,6 +138,15 @@ export async function POST(request: Request) {
             );
         }
 
+        // Extract role from token for role-based permissions
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => {
+            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+        const payload = JSON.parse(jsonPayload);
+        const currentUserRole = payload.role;
+
         // Parse request body
         const requestBody = await request.json();
         console.log('Admin API - Original request body:', requestBody);
@@ -143,14 +173,26 @@ export async function POST(request: Request) {
         const backendEndpoint = `${backendURL}/api/admin/users`;
 
         console.log(`Admin API - Creating user via direct API call to: ${backendEndpoint}`);
+        console.log('Admin API - Current user role:', currentUserRole);
+
+        // Create headers with role override for super admins
+        const headers: Record<string, string> = {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        };
+
+        // Add override headers for SUPER_ADMIN users
+        if (currentUserRole === 'SUPER_ADMIN') {
+            console.log('Adding X-Override-Role header for SUPER_ADMIN user');
+            headers['X-Override-Role'] = 'true';
+            headers['X-Admin-Access'] = 'true';
+            headers['X-Admin-Override'] = 'true';
+        }
 
         // Make direct request to backend with properly serialized data
         const response = await axios.post(backendEndpoint, serializedData, {
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-            },
+            headers,
             timeout: 15000
         });
 

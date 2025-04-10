@@ -26,8 +26,8 @@ export function Loading({
   };
 
   const variantClasses = {
-    default: 'text-gray-500',
-    primary: 'text-primary',
+    default: 'text-black dark:text-white',
+    primary: 'text-black dark:text-white',
     secondary: 'text-secondary',
   };
 
@@ -67,11 +67,11 @@ export function LoadingScreen({ text = 'Loading...' }: { text?: string }) {
       <div className="flex flex-col items-center justify-center p-8 rounded-lg shadow-lg">
         <div className="relative mb-4">
           <div className="h-16 w-16 rounded-full border-4 border-muted"></div>
-          <div className="absolute top-0 left-0 h-16 w-16 rounded-full border-4 border-t-primary border-r-transparent border-b-transparent border-l-transparent animate-spin" style={{ animationDuration: '1s' }}></div>
+          <div className="absolute top-0 left-0 h-16 w-16 rounded-full border-4 border-t-black dark:border-t-white border-r-transparent border-b-transparent border-l-transparent animate-spin" style={{ animationDuration: '1s' }}></div>
         </div>
         <p className="text-lg font-medium mb-3">{text}</p>
         <div className="mt-2 w-48 h-1.5 bg-muted rounded-full overflow-hidden">
-          <div className="h-full bg-gradient-to-r from-primary/70 via-primary to-primary/70 animate-gradient-x animate-progress"></div>
+          <div className="h-full bg-gradient-to-r from-black/70 via-black to-black/70 dark:from-white/70 dark:via-white dark:to-white/70 animate-gradient-x animate-progress"></div>
         </div>
       </div>
     </div>
@@ -81,9 +81,9 @@ export function LoadingScreen({ text = 'Loading...' }: { text?: string }) {
 export function LoadingDots() {
   return (
     <div className="flex space-x-1 items-center justify-center">
-      <div className="h-2 w-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-      <div className="h-2 w-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-      <div className="h-2 w-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+      <div className="h-2 w-2 bg-black dark:bg-white rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+      <div className="h-2 w-2 bg-black dark:bg-white rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+      <div className="h-2 w-2 bg-black dark:bg-white rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
     </div>
   );
 }
@@ -93,7 +93,7 @@ export function LoadingSpinner({ className }: { className?: string }) {
     <div className={cn("flex items-center justify-center", className)}>
       <div className="relative h-10 w-10">
         <div className="absolute top-0 left-0 h-full w-full border-4 border-muted rounded-full"></div>
-        <div className="absolute top-0 left-0 h-full w-full border-4 border-t-primary rounded-full animate-spin"></div>
+        <div className="absolute top-0 left-0 h-full w-full border-4 border-t-black dark:border-t-white rounded-full animate-spin"></div>
       </div>
     </div>
   );
@@ -122,7 +122,7 @@ export function LoadingCard({
     <div className="rounded-lg border bg-card text-card-foreground shadow-sm p-6">
       <div className="flex items-center space-x-4">
         <div className="relative h-12 w-12 rounded-full bg-muted flex items-center justify-center">
-          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          <Loader2 className="h-6 w-6 animate-spin text-black dark:text-white" />
         </div>
         <div className="space-y-1">
           <h3 className="font-medium leading-none">{title}</h3>

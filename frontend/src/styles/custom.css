@@ -125,7 +125,11 @@ div:has(h1:contains('Welcome')):has(button) {
 
 .loading-progress-bar {
   height: 100%;
-  background-color: var(--primary);
+  background-color: black;
+}
+
+.dark .loading-progress-bar {
+  background-color: white;
 }
 
 .loading-message {

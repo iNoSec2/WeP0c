@@ -75,10 +75,31 @@ export function serializeProjectFromBackend(backendProject: any): Project {
             start_date: null,
             end_date: null,
             pentester_ids: [],
+            pentesters: [],
+            vulnerabilities: [],
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
         };
     }
+
+    // Ensure pentesters array is properly initialized
+    const pentesters = Array.isArray(backendProject.pentesters)
+        ? backendProject.pentesters.map(p => ({
+            id: ensureString(p.id),
+            username: p.username || '',
+            email: p.email || ''
+        }))
+        : [];
+
+    // Ensure vulnerabilities array is properly initialized
+    const vulnerabilities = Array.isArray(backendProject.vulnerabilities)
+        ? backendProject.vulnerabilities.map(v => ({
+            id: ensureString(v.id),
+            title: v.title || '',
+            severity: v.severity || 'medium',
+            status: v.status || 'open'
+        }))
+        : [];
 
     return {
         id: ensureString(backendProject.id),
@@ -92,6 +113,8 @@ export function serializeProjectFromBackend(backendProject: any): Project {
         pentester_ids: Array.isArray(backendProject.pentester_ids)
             ? backendProject.pentester_ids.map(id => ensureString(id))
             : [],
+        pentesters: pentesters,
+        vulnerabilities: vulnerabilities,
         created_at: backendProject.created_at || new Date().toISOString(),
         updated_at: backendProject.updated_at || new Date().toISOString()
     };
@@ -238,4 +261,4 @@ export function serializeUserToBackend(user: Partial<User>): any {
     }
 
     return result;
-} 
+}

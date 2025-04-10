@@ -17,7 +17,8 @@ export interface Project {
     created_at?: string;
     updated_at?: string;
     pentester_ids?: string[];
-    pentesters?: Array<{ id: string; username: string; email?: string }>;
+    pentesters: Array<{ id: string; username: string; email?: string }>;
+    vulnerabilities: Array<{ id: string; title: string; severity: string; status: string }>;
 }
 
 export interface CreateProjectData {
@@ -41,7 +42,7 @@ export interface UpdateProjectData {
 }
 
 /**
- * Functions for fetching and managing pentesters 
+ * Functions for fetching and managing pentesters
  */
 export const pentesterService = {
     /**
@@ -141,4 +142,4 @@ export const projectsService = {
             throw error;
         }
     }
-}; 
+};
