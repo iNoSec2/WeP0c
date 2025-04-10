@@ -1,12 +1,15 @@
 version: '3.8'
 
 services:
-  web:
+  # Backend API service
+  api:
+    container_name: p0cit-app
     build: .
     command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload"
     volumes:
       - ./:/app
-      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/run/docker.sock:/var/run/docker.sock # Mount Docker socket for Docker-in-Docker
+      - poc_uploads:/app/uploads # Persist uploaded PoCs
     ports:
       - "8001:8001"
     depends_on:
@@ -14,23 +17,68 @@ services:
         condition: service_healthy
     env_file:
       - .env
+    environment:
+      - CORS_ORIGINS=http://localhost:3000
+    privileged: true # Required for Docker-in-Docker
+    networks:
+      - p0cit-network
 
+  # Frontend service
+  frontend:
+    container_name: p0cit-frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8001
+      - NODE_ENV=development
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+    restart: always
+    networks:
+      - p0cit-network
+    command: npm run dev
+
+  # Database service
   db:
+    container_name: p0cit-db
     image: postgres:13
     restart: always
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: postgres
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-p0cit}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+    networks:
+      - p0cit-network
+
+  # Sandbox service for PoC execution (optional - can use Docker-in-Docker instead)
+  sandbox:
+    container_name: p0cit-sandbox
+    image: docker:dind
+    privileged: true
+    restart: always
+    volumes:
+      - poc_uploads:/poc_data:ro # Read-only access to PoCs
+    networks:
+      - no-internet # Isolated network for security
+
+networks:
+  p0cit-network:
+    driver: bridge
+  no-internet:
+    driver: bridge
+    internal: true # No outbound access
 
 volumes:
   postgres_data:
+  poc_uploads:

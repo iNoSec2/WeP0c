@@ -1,88 +1,171 @@
-# WeP0c
+# P0cit - Penetration Testing Management Platform
 
-Fast API application for pentesters to share their POCs with their clients in a secure way.
-
-## Overview
-
-WeP0c is a FastAPI-based application designed for penetration testers to securely share their proof-of-concept (POC) exploits with their clients. The application ensures secure and efficient communication between pentesters and clients, providing a streamlined workflow for sharing and reviewing POCs.
+P0cit is a comprehensive platform designed to help penetration testers and security teams manage their penetration testing projects, share proofs of concept (PoC), and collaborate with clients. This production-ready version includes all the necessary features for a complete penetration testing workflow.
 
 ## Features
 
-- Secure sharing of POCs
-- Authentication and authorization
-- Real-time updates and notifications
-- Detailed logging and audit trails
-- RESTful API for integration with other tools
+- **User Management**: Support for multiple user roles (Super Admin, Admin, Pentester, Client, User)
+- **Project Management**: Create and manage penetration testing projects
+- **PoC Management**: Share, execute, and document proof of concept exploits
+- **Vulnerability Tracking**: Document and track vulnerabilities found during testing
+- **Client Access**: Allow clients to view reports and comment on findings
+- **Markdown Support**: Rich markdown editing with code highlighting for documentation
+- **Comments System**: Discuss findings and PoCs with team members and clients
+- **Microsoft SSO**: Authentication via Microsoft OAuth (frontend implemented, backend to be completed)
+- **Role-Based Access Control**: Granular access control based on user roles
 
-## Architecture
+## Tech Stack
 
-The application architecture consists of the following components:
-
-- **FastAPI Server**: The core backend service handling API requests and business logic.
-- **PostgreSQL Database**: Stores application data, user information, and logs.
-- **Docker**: Containerization of the application for consistent deployment.
-- **React Frontend (Future Work)**: A React-based frontend for user interaction.
-- **Azure AD Authentication (Future Work)**: Integration with Azure Active Directory for authentication.
-- **GitHub Actions (Future Work)**: CI/CD workflows for automated testing and deployment.
+- **Backend**: FastAPI with SQLAlchemy ORM
+- **Frontend**: Next.js with TypeScript
+- **Database**: PostgreSQL
+- **Authentication**: JWT tokens + Microsoft OAuth
+- **Styling**: Tailwind CSS
+- **Documentation**: Markdown with code highlighting
 
 ## Getting Started
 
 ### Prerequisites
 
-- Docker
-- Docker Compose
+- Python 3.8+
+- Node.js 18+
+- PostgreSQL
+- Docker (optional)
 
-### Installation
+### Installation with Docker (Recommended)
 
-1. Clone the repository:
-    ```sh
-    git clone https://github.com/zwxxb/WeP0c.git
-    cd WeP0c
-    ```
+The easiest way to get started is to use Docker Compose:
 
-2. Create a `.env` file with the following content:
-    ```env
-    DATABASE_URL=postgresql://postgres:postgres@db:5432/postgres
-    ```
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/p0cit.git
+cd p0cit
 
-3. Build and start the services:
-    ```sh
-    docker-compose up --build
-    ```
+# Copy and configure environment files
+cp .env.example .env
+cp frontend/.env.example frontend/.env.local
 
-4. Access the application at [http://localhost:8001](http://localhost:8001).
+# Start the application with Docker Compose
+docker-compose up -d
 
-## Usage
+# Create a super admin user
+docker-compose exec api python -m app.create_super_admin admin admin@example.com yourpassword
+```
 
-### API Endpoints
+This will start all the necessary services:
+- Backend API on port 8001
+- Frontend on port 3000
+- PostgreSQL database on port 5432
 
-- `GET /api/users`: Retrieve a list of users.
-- `POST /api/users`: Create a new user.
-- `GET /api/projects`: Retrieve a list of projects.
-- `POST /api/projects`: Create a new project.
-- `GET /api/vulnerabilities`: Retrieve a list of vulnerabilities.
-- `POST /api/vulnerabilities`: Create a new vulnerability.
+### Manual Installation
 
-## Contributing
+#### Backend
 
-We welcome contributions from the community! Here's how you can help:
+```bash
+# Create a virtual environment
+python -m venv env
+source env/bin/activate  # On Windows: env\Scripts\activate
 
-1. Fork the repository.
-2. Create a new branch for your feature or bugfix.
-3. Commit your changes and push your branch to GitHub.
-4. Create a pull request with a detailed description of your changes.
+# Install dependencies
+pip install -r requirements.txt
 
-## Open Issues and Improvements
+# Set up environment variables
+cp .env.example .env
+# Edit .env file with your configuration
 
-- Replace ID from int to UUIDs in models: Improve the security and uniqueness of model identifiers.
-- Make `requirements.txt` a parameter of the function and a user input parameter: Enhance the flexibility of dependency management.
-- Create a Dockerfile: Standardize the application environment.
-- Add a timeout and execution of JavaScript/HTML/Bash codes: Enhance the application's capabilities.
-- Create a frontend (React): Develop a user-friendly interface for the application.
-- Create unit tests: Ensure the reliability and correctness of the application.
-- Make GitHub workflow: Automate testing and deployment processes.
-- Add Azure AD authentication: Integrate with Azure Active Directory for user authentication.
+# Initialize the database
+python -m app.init_db
+
+# Create a super admin user
+python -m app.create_super_admin <username> <email> <password>
+
+# Start the backend server
+uvicorn app.main:app --reload
+```
+
+#### Frontend
+
+```bash
+# Navigate to frontend directory
+cd frontend
+
+# Install dependencies
+npm install
+
+# Set up environment variables
+cp .env.example .env.local
+# Edit .env.local file with your configuration
+
+# Start the development server
+npm run dev
+```
+
+## Setting Up Microsoft OAuth (Optional)
+
+To enable Microsoft authentication:
+
+1. Register a new application in the [Microsoft Azure Portal](https://portal.azure.com/#blade/Microsoft_AAD_RegisteredApps/ApplicationsListBlade)
+2. Add redirect URI: `http://localhost:3000/auth/microsoft/callback`
+3. Note your Application (client) ID and create a client secret
+4. Update these values in your `.env` file:
+
+```
+MICROSOFT_CLIENT_ID=your_client_id
+MICROSOFT_CLIENT_SECRET=your_client_secret
+MICROSOFT_TENANT_ID=your_tenant_id
+```
+
+## User Roles
+
+- **SUPER_ADMIN**: Full access to all features, user management, and system settings
+- **ADMIN**: Manage projects, users, and platform settings
+- **PENTESTER**: Create and manage pentest reports, vulnerabilities, and PoCs
+- **CLIENT**: View assigned projects, reports, and add comments
+- **USER**: Basic access to view allowed resources
+
+## API Documentation
+
+Once the application is running, you can access the API documentation at:
+
+- Swagger UI: http://localhost:8001/docs
+- ReDoc: http://localhost:8001/redoc
+
+## Production Deployment
+
+For production deployment instructions, see [PRODUCTION_SETUP.md](PRODUCTION_SETUP.md).
+
+## Development Notes
+
+### Authentication Flow
+
+The application uses JWT tokens for authentication. The token is stored in cookies for frontend access. The workflow is:
+
+1. User logs in via username/password or Microsoft OAuth
+2. Backend validates credentials and issues a JWT token
+3. Token is stored in cookies and included in subsequent requests
+4. Backend validates the token for protected routes
+
+### Markdown and Code Highlighting
+
+The platform supports rich markdown editing with code highlighting for documentation. This is implemented using:
+
+- `markdown-it` for rendering markdown
+- `react-markdown-editor-lite` for the editor component
+- `highlight.js` for syntax highlighting
+- Custom components for displaying code blocks with language detection
+
+### Comments Feature
+
+The platform supports comments on pentests and PoCs. This allows discussion between team members and clients about findings and vulnerabilities. Comments support markdown formatting for better readability.
+
+### Role-Based Access Control
+
+Access to resources is controlled by the user's role. The frontend and backend both implement checks to ensure users can only access resources appropriate for their role. The `RouteGuard` component in the frontend ensures that users can only access pages they have permission to view.
 
 ## License
 
-This project is licensed under the MIT License.
+[MIT License](LICENSE)
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
