@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Header
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from uuid import UUID
 from app.schemas.vulnerability import Vulnerability, VulnerabilityCreate, VulnerabilityUploadPoc
 from app.crud import crud_vulnerability
-from app.core.deps import get_db, require_role, get_current_user
+from app.core.deps import get_db, get_current_user
+from app.core.permissions import Permissions
 from app.models.user import User
 from app.schemas.user import Role
 from app.models.vulnerability import PoCType
@@ -17,7 +18,7 @@ router = APIRouter(tags=["vulnerabilities"])
 @router.get("/recent", response_model=List[Vulnerability])
 async def get_recent_vulnerabilities(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(Permissions.ANY_USER),
     limit: int = 5
 ):
     """Get recent vulnerabilities with optional limit parameter."""
@@ -45,7 +46,7 @@ async def create_vulnerability(
     project_id: UUID,
     vulnerability: VulnerabilityCreate,
     db: Session = Depends(get_db),
-    current_user = Depends(require_role(Role.PENTESTER))
+    current_user = Depends(Permissions.PENTESTER_WITH_OVERRIDE)
 ):
     """Create a new vulnerability with markdown support"""
     # Convert markdown to HTML for preview
@@ -59,7 +60,7 @@ async def create_vulnerability(
 async def get_project_vulnerabilities(
     project_id: UUID,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user)  # Both pentesters and clients can view
+    current_user = Depends(Permissions.PENTESTER_AND_CLIENT)
 ):
     """Get all vulnerabilities for a project with rendered HTML"""
     vulnerabilities = crud_vulnerability.get_vulnerabilities_by_project(db=db, project_id=project_id)
@@ -74,7 +75,7 @@ async def get_project_vulnerabilities(
 async def get_vulnerability(
     vulnerability_id: UUID,
     db: Session = Depends(get_db),
-    current_user = Depends(get_db)  # Both pentesters and clients can view
+    current_user = Depends(Permissions.PENTESTER_AND_CLIENT)
 ):
     vulnerability = crud_vulnerability.get_vulnerability(db=db, vulnerability_id=vulnerability_id)
     if not vulnerability:
@@ -86,7 +87,7 @@ async def upload_poc_file(
     vulnerability_id: UUID,
     poc_file: UploadFile = File(...),
     db: Session = Depends(get_db),
-    current_user = Depends(require_role(Role.PENTESTER))
+    current_user = Depends(Permissions.PENTESTER_WITH_OVERRIDE)
 ):
     """Upload a PoC file for a vulnerability"""
     # Check file extension
@@ -112,7 +113,7 @@ async def upload_poc_file(
 async def execute_vulnerability_poc(
     vulnerability_id: UUID,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user)  # Both pentesters and clients can execute
+    current_user = Depends(Permissions.PENTESTER_AND_CLIENT)
 ):
     """Execute a vulnerability PoC in a sandboxed environment"""
     vulnerability = crud_vulnerability.get_vulnerability(db=db, vulnerability_id=vulnerability_id)

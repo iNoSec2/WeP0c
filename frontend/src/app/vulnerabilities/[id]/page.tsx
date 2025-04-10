@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { formatDate } from '@/lib/utils';
 import { useToast } from '@/components/ui/use-toast';
 import { Play, ArrowLeft, Edit, Trash2 } from 'lucide-react';
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 export default function VulnerabilityDetailPage() {
   const params = useParams();
@@ -26,6 +27,7 @@ export default function VulnerabilityDetailPage() {
     output?: string;
     exit_code?: number;
   }>({});
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
   const { data: vulnerability, isLoading } = useQuery({
     queryKey: ['vulnerability', vulnerabilityId],
@@ -111,6 +113,10 @@ export default function VulnerabilityDetailPage() {
     }
   };
 
+  const handleDeleteClick = () => {
+    setIsDeleteDialogOpen(true);
+  };
+
   if (isLoading) {
     return (
       <DashboardLayout>
@@ -184,11 +190,7 @@ export default function VulnerabilityDetailPage() {
               </Button>
               <Button
                 variant="destructive"
-                onClick={() => {
-                  if (window.confirm('Are you sure you want to delete this vulnerability?')) {
-                    deleteVulnerabilityMutation.mutate();
-                  }
-                }}
+                onClick={handleDeleteClick}
               >
                 <Trash2 className="mr-2 h-4 w-4" />
                 Delete
@@ -252,8 +254,8 @@ export default function VulnerabilityDetailPage() {
                         <div className="space-y-2">
                           <h4 className="font-medium">Execution Result</h4>
                           <div className={`p-4 rounded-md overflow-auto ${executionResult.success
-                              ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-900'
-                              : 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900'
+                            ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-900'
+                            : 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900'
                             }`}>
                             <div className="flex justify-between mb-2">
                               <span className="font-medium">
@@ -281,6 +283,16 @@ export default function VulnerabilityDetailPage() {
           </Card>
         </div>
       </div>
+
+      <ConfirmDialog
+        isOpen={isDeleteDialogOpen}
+        onClose={() => setIsDeleteDialogOpen(false)}
+        onConfirm={() => deleteVulnerabilityMutation.mutate()}
+        title="Delete Vulnerability"
+        description="Are you sure you want to delete this vulnerability? This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+      />
     </DashboardLayout>
   );
 }

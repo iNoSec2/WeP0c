@@ -1,142 +1,119 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Shield, CheckCircle } from 'lucide-react';
+import { Shield } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface LoadingScreenProps {
   message?: string;
 }
 
-export function LoadingScreen({ message = 'Loading your secure environment...' }: LoadingScreenProps) {
-  const [progress, setProgress] = useState(0);
-  const [loadingStep, setLoadingStep] = useState(0);
-  const [isComplete, setIsComplete] = useState(false);
+const loadingMessages = [
+  "Loading your secure environment...",
+  "Initializing security protocols...",
+  "Scanning for vulnerabilities...",
+  "Setting up pentesting workspace...",
+  "Establishing secure connections...",
+  "Preparing reporting tools...",
+  "Syncing project data...",
+  "Almost ready..."
+];
 
-  const loadingMessages = [
-    'Initializing secure environment...',
-    'Loading application components...',
-    'Establishing secure connection...',
-    'Preparing dashboard...',
-    'Almost ready...'
-  ];
+const LoadingScreen: React.FC<LoadingScreenProps> = ({ message }) => {
+  const [progress, setProgress] = useState(0);
+  const [currentMessage, setCurrentMessage] = useState(message || loadingMessages[0]);
+  const [messageIndex, setMessageIndex] = useState(0);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    // Simulate loading progress with a more natural curve
-    const interval = setInterval(() => {
-      setProgress((prevProgress) => {
-        // Faster at the beginning, slower towards the end
-        let increment = 5;
-        if (prevProgress > 70) increment = 3;
-        if (prevProgress > 85) increment = 2;
-        if (prevProgress > 95) increment = 1;
+    // Simulate loading progress
+    intervalRef.current = setInterval(() => {
+      setProgress((prev) => {
+        // Slow down progress as it gets closer to 100%
+        const increment = Math.max(0.3, (100 - prev) / 30);
+        const newProgress = Math.min(99, prev + increment);
 
-        const newProgress = prevProgress + increment;
-
-        // Update loading step based on progress
-        if (newProgress > 20 && loadingStep === 0) setLoadingStep(1);
-        else if (newProgress > 40 && loadingStep === 1) setLoadingStep(2);
-        else if (newProgress > 60 && loadingStep === 2) setLoadingStep(3);
-        else if (newProgress > 80 && loadingStep === 3) setLoadingStep(4);
-
-        // Mark as complete when we reach 100%
-        if (newProgress >= 100 && !isComplete) {
-          setIsComplete(true);
-          clearInterval(interval);
+        // Complete loading at 99% with a final timeout
+        if (newProgress >= 99 && !timeoutRef.current) {
+          timeoutRef.current = setTimeout(() => {
+            setProgress(100);
+          }, 1200);
         }
 
-        return newProgress >= 100 ? 100 : newProgress;
+        return newProgress;
       });
-    }, 40); // Slightly faster interval
+    }, 180);
 
-    return () => clearInterval(interval);
-  }, [loadingStep, isComplete]);
+    // Cycle through messages
+    const messageInterval = setInterval(() => {
+      setMessageIndex((prev) => (prev + 1) % loadingMessages.length);
+    }, 3200);
+
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      clearInterval(messageInterval);
+    };
+  }, []);
+
+  // Update the current message when the index changes
+  useEffect(() => {
+    setCurrentMessage(message || loadingMessages[messageIndex]);
+  }, [message, messageIndex]);
 
   return (
-    <div className="fixed inset-0 flex flex-col items-center justify-center bg-background z-50">
-      <div className="w-full max-w-md px-8 py-12 flex flex-col items-center">
+    <motion.div
+      className="loading-screen"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.5 }}
+    >
+      <div className="flex flex-col items-center justify-center">
         <motion.div
-          initial={{ scale: 0.9, opacity: 0 }}
+          initial={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          transition={{ duration: 0.5, type: 'spring', stiffness: 100 }}
-          className="mb-8 relative"
+          transition={{ duration: 0.6, ease: "easeOut" }}
+          className="mb-8"
         >
-          <div className="flex items-center justify-center mb-4 relative">
-            <motion.div
-              className="absolute inset-0 rounded-full bg-primary/10 w-16 h-16"
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: [0.8, 1.2, 0.8], opacity: [0.3, 0.5, 0.3] }}
-              transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+          <div className="flex items-center justify-center">
+            <Shield
+              size={56}
+              className={cn(
+                "text-primary",
+                "pulse-animation"
+              )}
             />
-            <motion.div
-              className="absolute inset-0 rounded-full bg-primary/5 w-20 h-20"
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: [0.9, 1.3, 0.9], opacity: [0.2, 0.4, 0.2] }}
-              transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut', delay: 0.2 }}
-            />
-            <Shield className="h-16 w-16 text-primary relative z-10 pulse-animation" />
           </div>
-          <motion.h1
-            initial={{ opacity: 0, y: 5 }}
+          <h1 className="text-2xl font-bold mt-3 text-center">P0cit</h1>
+        </motion.div>
+
+        <div className="loading-progress">
+          <motion.div
+            className="loading-progress-bar"
+            initial={{ width: "0%" }}
+            animate={{ width: `${progress}%` }}
+            transition={{ duration: 0.3 }}
+          />
+        </div>
+
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={messageIndex}
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3, duration: 0.5 }}
-            className="text-4xl font-bold text-center mb-2"
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.3 }}
+            className="loading-message"
           >
-            P0cit
-          </motion.h1>
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.5, duration: 0.5 }}
-            className="text-sm text-muted-foreground text-center"
-          >
-            Penetration Testing Management Platform
-          </motion.p>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.7, duration: 0.5 }}
-          className="w-full space-y-4"
-        >
-          {/* Custom progress bar with animated gradient */}
-          <div className="h-2 w-full bg-primary/10 rounded-full overflow-hidden">
-            <motion.div
-              className={`h-full rounded-full ${isComplete ?
-                'bg-gradient-to-r from-green-500 via-green-400 to-green-500 animate-gradient-x' :
-                'bg-gradient-to-r from-primary/70 via-primary to-primary/70 animate-gradient-x'}`}
-              style={{ width: `${progress}%` }}
-              initial={{ width: '0%' }}
-              animate={{ width: `${progress}%` }}
-              transition={{ duration: 0.3 }}
-            />
-          </div>
-
-          <div className="flex justify-between items-center">
-            <AnimatePresence mode="wait">
-              <motion.p
-                key={loadingStep}
-                initial={{ opacity: 0, y: 5 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -5 }}
-                transition={{ duration: 0.2 }}
-                className="text-sm text-muted-foreground flex items-center"
-              >
-                {isComplete ? (
-                  <>
-                    <CheckCircle className="w-4 h-4 text-green-500 mr-2" />
-                    <span className="text-green-500">Ready!</span>
-                  </>
-                ) : (
-                  loadingMessages[loadingStep]
-                )}
-              </motion.p>
-            </AnimatePresence>
-            <p className="text-sm font-medium">{progress}%</p>
-          </div>
-        </motion.div>
+            {currentMessage}
+          </motion.div>
+        </AnimatePresence>
       </div>
-    </div>
+    </motion.div>
   );
-}
+};
+
+export default LoadingScreen;

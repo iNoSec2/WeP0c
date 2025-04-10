@@ -18,7 +18,32 @@ export default function RootLayout({
     children: React.ReactNode;
 }>) {
     return (
-        <html lang="en">
+        <html lang="en" suppressHydrationWarning>
+            <head>
+                <script dangerouslySetInnerHTML={{
+                    __html: `
+                        document.addEventListener('DOMContentLoaded', function() {
+                            // Remove any welcome banners with P0cit title
+                            const removeWelcomeBanners = () => {
+                                // Look for elements with titles containing 'Welcome' and 'P0cit'
+                                const banners = document.querySelectorAll('div[role="alert"], [class*="welcome"], [class*="banner"]');
+                                banners.forEach(banner => {
+                                    const text = banner.textContent || '';
+                                    if (text.includes('Welcome to P0cit') || text.includes('Initialize Database')) {
+                                        banner.style.display = 'none';
+                                        banner.remove();
+                                    }
+                                });
+                            };
+                            
+                            // Execute immediately and also after a short delay
+                            removeWelcomeBanners();
+                            setTimeout(removeWelcomeBanners, 500);
+                            setTimeout(removeWelcomeBanners, 1500);
+                        });
+                    `
+                }} />
+            </head>
             <body className={inter.className}>
                 <Providers>
                     <RouteGuard>

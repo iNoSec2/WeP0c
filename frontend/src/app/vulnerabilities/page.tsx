@@ -46,6 +46,7 @@ import {
 import { useToast } from "@/components/ui/use-toast";
 import MarkdownEditor, { MarkdownDisplay } from "@/components/MarkdownEditor";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 interface Vulnerability {
     id: string;
@@ -84,6 +85,8 @@ export default function VulnerabilitiesPage() {
     });
 
     const [activeTab, setActiveTab] = useState("description");
+    const [selectedVuln, setSelectedVuln] = useState<any | null>(null);
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
     const { data: vulnerabilities = [], isLoading } = useQuery<Vulnerability[]>({
         queryKey: ["vulnerabilities"],
@@ -96,7 +99,7 @@ export default function VulnerabilitiesPage() {
     const { data: projects = [], isLoading: projectsLoading } = useQuery<Project[]>({
         queryKey: ["projects"],
         queryFn: async () => {
-            const response = await axios.get("/api/projects/");
+            const response = await axios.get("/api/projects");
             return response.data;
         },
     });
@@ -213,6 +216,17 @@ export default function VulnerabilitiesPage() {
                 description: error.response?.data?.detail || "Failed to execute PoC",
                 variant: "destructive",
             });
+        }
+    };
+
+    const handleDeleteVuln = (vuln: any) => {
+        setSelectedVuln(vuln);
+        setIsDeleteDialogOpen(true);
+    };
+
+    const confirmDeleteVuln = () => {
+        if (selectedVuln) {
+            deleteVulnerabilityMutation.mutate(selectedVuln.id);
         }
     };
 
@@ -449,11 +463,7 @@ export default function VulnerabilitiesPage() {
                                                         <Button
                                                             variant="ghost"
                                                             size="icon"
-                                                            onClick={() => {
-                                                                if (window.confirm("Are you sure you want to delete this vulnerability?")) {
-                                                                    deleteVulnerabilityMutation.mutate(vulnerability.id);
-                                                                }
-                                                            }}
+                                                            onClick={() => handleDeleteVuln(vulnerability)}
                                                             title="Delete"
                                                         >
                                                             <Trash2 className="h-4 w-4" />
@@ -476,6 +486,15 @@ export default function VulnerabilitiesPage() {
                     )}
                 </div>
             </div>
+            <ConfirmDialog
+                isOpen={isDeleteDialogOpen}
+                onClose={() => setIsDeleteDialogOpen(false)}
+                onConfirm={confirmDeleteVuln}
+                title="Delete Vulnerability"
+                description={`Are you sure you want to delete ${selectedVuln?.title || "this vulnerability"}? This action cannot be undone.`}
+                confirmText="Delete"
+                cancelText="Cancel"
+            />
         </DashboardLayout>
     );
 }

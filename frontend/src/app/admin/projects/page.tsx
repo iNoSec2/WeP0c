@@ -15,6 +15,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { PlusCircle, Search, Edit, Trash2, FolderPlus } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 import { ProjectStatus } from '@/types/project';
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 interface Project {
   id: string;
@@ -46,6 +47,8 @@ export default function AdminProjectsPage() {
     client_id: '',
     status: ProjectStatus.PLANNING,
   });
+  const [selectedProject, setSelectedProject] = useState<any | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
   const { data: projects = [], isLoading: projectsLoading } = useQuery<Project[]>({
     queryKey: ['admin-projects'],
@@ -65,7 +68,7 @@ export default function AdminProjectsPage() {
 
   const createProjectMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
-      const response = await axios.post('/api/projects/projects/', data);
+      const response = await axios.post('/api/projects', data);
       return response.data;
     },
     onSuccess: () => {
@@ -92,7 +95,7 @@ export default function AdminProjectsPage() {
 
   const deleteProjectMutation = useMutation({
     mutationFn: async (projectId: string) => {
-      await axios.delete(`/api/projects/projects/${projectId}`);
+      await axios.delete(`/api/projects/${projectId}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-projects'] });
@@ -143,6 +146,17 @@ export default function AdminProjectsPage() {
     }
 
     createProjectMutation.mutate(formData);
+  };
+
+  const handleDeleteClick = (project: any) => {
+    setSelectedProject(project);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = () => {
+    if (selectedProject) {
+      deleteProjectMutation.mutate(selectedProject.id);
+    }
   };
 
   return (
@@ -314,14 +328,12 @@ export default function AdminProjectsPage() {
                             </Button>
                             <Button
                               variant="ghost"
-                              size="icon"
-                              onClick={() => {
-                                if (window.confirm("Are you sure you want to delete this project?")) {
-                                  deleteProjectMutation.mutate(project.id);
-                                }
-                              }}
+                              size="sm"
+                              onClick={() => handleDeleteClick(project)}
+                              className="text-red-500 hover:text-red-700"
                             >
-                              <Trash2 className="h-4 w-4" />
+                              <Trash2 className="h-4 w-4 mr-1" />
+                              Delete
                             </Button>
                           </div>
                         </TableCell>
@@ -342,6 +354,15 @@ export default function AdminProjectsPage() {
           )}
         </div>
       </div>
+      <ConfirmDialog
+        isOpen={isDeleteDialogOpen}
+        onClose={() => setIsDeleteDialogOpen(false)}
+        onConfirm={confirmDelete}
+        title="Delete Project"
+        description={`Are you sure you want to delete ${selectedProject?.name || "this project"}? This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+      />
     </DashboardLayout>
   );
 }

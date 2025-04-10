@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import axios from 'axios';
 import { getBackendURL } from '@/lib/api';
 import { loginToBackend } from '@/lib/api/loginUtil';
+import { getAuthHeaders } from '@/lib/api/permissionUtils';
+import { getUserRoleFromToken } from '@/lib/api/tokenUtils';
 
 export async function GET(request: Request) {
     try {
@@ -24,15 +26,17 @@ export async function GET(request: Request) {
             );
         }
 
+        // Get user role from token for permission handling
+        const userRole = getUserRoleFromToken(finalToken);
+
+        // Generate appropriate headers with permission handling
+        const headers = getAuthHeaders(finalToken, userRole);
+
         // Forward request to backend
         const backendURL = getBackendURL();
         console.log('Fetching vulnerabilities from:', `${backendURL}/api/vulnerabilities`);
 
-        const response = await axios.get(`${backendURL}/api/vulnerabilities`, {
-            headers: {
-                Authorization: `Bearer ${finalToken}`
-            }
-        });
+        const response = await axios.get(`${backendURL}/api/vulnerabilities`, { headers });
 
         return NextResponse.json(response.data);
     } catch (error: any) {
@@ -91,6 +95,9 @@ export async function POST(request: Request) {
             );
         }
 
+        // Get user role from token
+        const userRole = getUserRoleFromToken(finalToken);
+
         // Parse the request body
         const data = await request.json();
         console.log('Creating vulnerability with data:', data);
@@ -110,13 +117,11 @@ export async function POST(request: Request) {
         console.log(`Creating vulnerability for project ${projectId}`);
 
         try {
+            // Generate appropriate headers with permission handling
+            const headers = getAuthHeaders(finalToken, userRole);
+
             // Try the first endpoint format
-            const response = await axios.post(`${backendURL}/api/vulnerabilities/${projectId}`, data, {
-                headers: {
-                    Authorization: `Bearer ${finalToken}`,
-                    'Content-Type': 'application/json'
-                }
-            });
+            const response = await axios.post(`${backendURL}/api/vulnerabilities/${projectId}`, data, { headers });
 
             return NextResponse.json(response.data, { status: 201 });
         } catch (innerError: any) {

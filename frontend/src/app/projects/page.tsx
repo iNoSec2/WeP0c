@@ -35,6 +35,7 @@ import {
 import { useToast } from "@/components/ui/use-toast";
 import DashboardLayout from "@/components/DashboardLayout";
 import { PlusCircle, Search, Edit, Trash2 } from "lucide-react";
+import React from "react";
 
 export default function ProjectsPage() {
     const router = useRouter();
@@ -55,6 +56,14 @@ export default function ProjectsPage() {
         queryKey: ["projects"],
         queryFn: async () => {
             const response = await axios.get("/api/projects");
+            return response.data;
+        },
+    });
+
+    const { data: clients = [] } = useQuery({
+        queryKey: ["clients"],
+        queryFn: async () => {
+            const response = await axios.get("/api/clients");
             return response.data;
         },
     });
@@ -112,6 +121,26 @@ export default function ProjectsPage() {
     const filteredProjects = projects.filter((project: any) =>
         project.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
+
+    const clientMap = React.useMemo(() => {
+        const map = new Map();
+        clients.forEach((client: any) => {
+            map.set(client.id, client.username || 'Unknown Client');
+        });
+        return map;
+    }, [clients]);
+
+    const getClientName = (project: any) => {
+        if (project.client && project.client.username) {
+            return project.client.username;
+        }
+
+        if (project.client_id && clientMap.get(project.client_id)) {
+            return clientMap.get(project.client_id);
+        }
+
+        return project.client_id ? `Client ${project.client_id.substring(0, 8)}...` : 'Unknown Client';
+    };
 
     const getStatusColor = (status: string) => {
         switch (status.toLowerCase()) {
@@ -265,7 +294,7 @@ export default function ProjectsPage() {
                                 {filteredProjects.map((project: any) => (
                                     <TableRow key={project.id}>
                                         <TableCell className="font-medium">{project.name}</TableCell>
-                                        <TableCell>{project.client_id}</TableCell>
+                                        <TableCell>{getClientName(project)}</TableCell>
                                         <TableCell>
                                             <Badge className={getStatusColor(project.status)}>
                                                 {project.status}

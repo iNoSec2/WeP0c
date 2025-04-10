@@ -5,24 +5,31 @@ from datetime import datetime
 from app.schemas.vulnerability import Vulnerability
 from app.models.project import ProjectStatus
 
+
 class UserBase(BaseModel):
     id: UUID
     username: str
     email: Optional[str] = None
 
+
 class ProjectBase(BaseModel):
     name: str
     status: Optional[ProjectStatus] = ProjectStatus.planning
 
+
 class ProjectCreate(ProjectBase):
     client_id: UUID
+    pentester_id: UUID  # Make pentester required
+
 
 class ProjectUpdate(BaseModel):
     name: Optional[str] = None
     status: Optional[ProjectStatus] = None
 
+
 class ProjectAddPentester(BaseModel):
     pentester_id: UUID
+
 
 class Project(ProjectBase):
     id: UUID

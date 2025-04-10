@@ -20,7 +20,24 @@ Base.metadata.create_all(bind=engine)
 # Create FastAPI app
 app = FastAPI(
     title="P0cit - Pentester PoC Sharing Platform",
-    description="A secure platform for pentesters to share PoCs with clients",
+    description="""
+    A secure platform for pentesters to share PoCs with clients.
+    
+    ## Authentication
+    
+    The API uses JWT tokens for authentication. Obtain a token using the /api/auth/login endpoint.
+    
+    ## Permissions System
+    
+    The application uses a role-based access control system with the following roles:
+    
+    - **SUPER_ADMIN**: Has access to all endpoints, can override restrictions with X-Override-Role header
+    - **ADMIN**: Administrative access to user management and system settings
+    - **PENTESTER**: Can create and manage vulnerabilities, upload PoCs, and run tests
+    - **CLIENT**: Can view projects and vulnerabilities assigned to them
+    
+    Super admins can override role restrictions by setting the X-Override-Role header to "true"
+    """,
     version="1.0.0"
 )
 

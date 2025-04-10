@@ -123,3 +123,54 @@ async def get_all_projects(
     from app.crud.crud_project import get_projects
     return get_projects(db, skip=skip, limit=limit)
 
+@router.delete("/users/{user_id}", response_model=dict)
+async def delete_user(
+    user_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(Role.SUPER_ADMIN))
+):
+    """Delete a user (admin only) - matches frontend URL structure"""
+    # Check if user exists
+    user = crud_user.get_user(db, user_id=user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Don't allow deleting self
+    if user_id == current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot delete your own admin account"
+        )
+
+    crud_user.deactivate_user(db, user_id=user_id)
+    return {"message": f"User {user.username} has been deactivated"}
+
+@router.get("/users/{user_id}", response_model=UserOut)
+async def get_user_by_id(
+    user_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(Role.SUPER_ADMIN))
+):
+    """Get detailed user information by ID (admin only) - matches frontend URL structure"""
+    user = crud_user.get_user(db, user_id=user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user
+
+@router.put("/users/{user_id}", response_model=UserOut)
+async def update_user_by_id(
+    user_id: UUID,
+    user_data: UserUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(Role.SUPER_ADMIN))
+):
+    """Update user information (admin only) - matches frontend URL structure"""
+    # Check if user exists
+    user = crud_user.get_user(db, user_id=user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Convert Pydantic model to dict and update user
+    updated_user = crud_user.update_user(db, user_id=user_id, user_data=user_data.dict(exclude_unset=True))
+    return updated_user
+

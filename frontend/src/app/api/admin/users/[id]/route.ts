@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server';
 import axios from 'axios';
 import { getBackendURL } from '@/lib/api';
-import { loginToBackend } from '@/lib/api/loginUtil';
 
-// Helper function to get token
+// Helper function to get token from request
 const getTokenFromRequest = (request: Request) => {
     const cookies = request.headers.get('cookie') || '';
+    console.log('Admin users/id API - Full cookie string:', cookies);
+
     const tokenMatch = cookies.match(/token=([^;]+)/);
     const token = tokenMatch ? decodeURIComponent(tokenMatch[1]) : null;
 
@@ -13,247 +14,160 @@ const getTokenFromRequest = (request: Request) => {
     const authHeader = request.headers.get('Authorization');
     const headerToken = authHeader?.split(' ')[1];
 
+    console.log('Admin users/id API - Token extraction results:', {
+        hasCookieToken: !!token,
+        hasHeaderToken: !!headerToken,
+        source: token ? 'cookie' : headerToken ? 'header' : 'none'
+    });
+
     // Use token from cookie or header
     return token || headerToken;
 };
 
-interface UserParams {
-    params: {
-        id: string;
-    };
+// Direct function to call backend for a specific user
+async function callBackendUserAPI(id: string, token: string, method: string, body?: any) {
+    const backendURL = getBackendURL();
+    const url = `${backendURL}/api/admin/users/${id}`;
+
+    console.log(`Admin API - Making ${method} request to: ${url}`);
+    console.log('Using token:', token ? `${token.substring(0, 10)}...` : 'NO TOKEN');
+
+    try {
+        const config = {
+            method,
+            url,
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            data: method !== 'GET' ? body : undefined,
+            timeout: 15000
+        };
+
+        const response = await axios(config);
+        console.log(`Backend response success:`, { status: response.status });
+        return response;
+    } catch (error: any) {
+        console.error(`Backend API call failed:`, {
+            status: error.response?.status,
+            message: error.message
+        });
+        throw error;
+    }
 }
 
-export async function GET(request: Request, { params }: UserParams) {
+export async function GET(request: Request, { params }: { params: { id: string } }) {
     try {
-        const userId = params.id;
-        let finalToken = getTokenFromRequest(request);
+        // Get token from request
+        const token = getTokenFromRequest(request);
 
-        // If no token is available, try to login with service account
-        if (!finalToken) {
-            try {
-                // Use environment variables for service account credentials
-                const serviceEmail = process.env.SERVICE_ACCOUNT_EMAIL || 'admin@example.com';
-                const servicePassword = process.env.SERVICE_ACCOUNT_PASSWORD || 'admin123';
-
-                // Login to get a valid token
-                const authResponse = await loginToBackend(serviceEmail, servicePassword);
-                finalToken = authResponse.access_token;
-
-                console.log('Successfully obtained service token for admin operations');
-            } catch (loginError) {
-                console.error('Failed to obtain service token:', loginError);
-                return NextResponse.json(
-                    { error: 'Authentication failed' },
-                    { status: 401 }
-                );
-            }
-        }
-
-        if (!finalToken) {
+        if (!token) {
+            console.error('Admin users/id API - No token found in request');
             return NextResponse.json(
-                { error: 'Unauthorized - No valid token found' },
+                { error: 'Authentication required. Please log in again.' },
                 { status: 401 }
             );
         }
 
-        const backendURL = getBackendURL();
-        console.log(`Fetching user ${userId} from backend:`, `${backendURL}/api/admin/users/${userId}`);
+        const userId = params.id;
+        console.log(`Admin users/id API - Fetching user with ID: ${userId}`);
 
-        try {
-            // Forward the request to the backend with the token
-            const response = await axios.get(`${backendURL}/api/admin/users/${userId}`, {
-                headers: {
-                    Authorization: `Bearer ${finalToken}`
-                }
-            });
+        // Call backend
+        const response = await callBackendUserAPI(userId, token, 'GET');
 
-            return NextResponse.json(response.data);
-        } catch (apiError: any) {
-            console.error('Backend API error:', apiError.message);
-
-            // For development, provide mock data
-            if (process.env.NODE_ENV === 'development') {
-                console.log('Development mode: Returning mock user data');
-                return NextResponse.json({
-                    id: userId,
-                    username: `user-${userId.substring(0, 5)}`,
-                    email: `user-${userId.substring(0, 5)}@example.com`,
-                    full_name: 'Sample User',
-                    role: 'USER',
-                    is_active: true,
-                    created_at: new Date().toISOString(),
-                    updated_at: new Date().toISOString()
-                });
-            }
-
-            // Return proper error response
-            const status = apiError.response?.status || 500;
-            const message = apiError.response?.data?.detail || 'Failed to fetch user';
-
-            return NextResponse.json(
-                { error: message },
-                { status: status }
-            );
-        }
+        // Return the user data
+        return NextResponse.json(response.data);
     } catch (error: any) {
-        console.error('Error in admin user details request:', error);
+        console.error('Admin users/id API - Error:', error);
 
-        // Return proper error response
+        // Get error details
+        const status = error.response?.status || 500;
+        const errorData = error.response?.data;
+
         return NextResponse.json(
-            { error: 'Failed to process admin user details request' },
-            { status: 500 }
+            {
+                error: errorData?.detail || 'Failed to fetch user',
+                details: errorData
+            },
+            { status }
         );
     }
 }
 
-export async function PATCH(request: Request, { params }: UserParams) {
+export async function PUT(request: Request, { params }: { params: { id: string } }) {
     try {
-        const userId = params.id;
-        let finalToken = getTokenFromRequest(request);
+        // Get token from request
+        const token = getTokenFromRequest(request);
 
-        // If no token is available, try to login with service account
-        if (!finalToken) {
-            try {
-                const serviceEmail = process.env.SERVICE_ACCOUNT_EMAIL || 'admin@example.com';
-                const servicePassword = process.env.SERVICE_ACCOUNT_PASSWORD || 'admin123';
-
-                const authResponse = await loginToBackend(serviceEmail, servicePassword);
-                finalToken = authResponse.access_token;
-
-                console.log('Successfully obtained service token for admin user update');
-            } catch (loginError) {
-                console.error('Failed to obtain service token:', loginError);
-                return NextResponse.json(
-                    { error: 'Authentication failed' },
-                    { status: 401 }
-                );
-            }
-        }
-
-        if (!finalToken) {
+        if (!token) {
+            console.error('Admin users/id API - No token found in request');
             return NextResponse.json(
-                { error: 'Unauthorized - No valid token found' },
+                { error: 'Authentication required. Please log in again.' },
                 { status: 401 }
             );
         }
 
-        // Parse the request body
+        const userId = params.id;
         const body = await request.json();
+        console.log(`Admin users/id API - Updating user with ID: ${userId}`);
 
-        const backendURL = getBackendURL();
-        console.log(`Updating user ${userId}:`, body);
+        // Call backend
+        const response = await callBackendUserAPI(userId, token, 'PUT', body);
 
-        try {
-            // Forward the request to the backend with the token
-            const response = await axios.patch(`${backendURL}/api/admin/users/${userId}`, body, {
-                headers: {
-                    Authorization: `Bearer ${finalToken}`,
-                    'Content-Type': 'application/json'
-                }
-            });
-
-            return NextResponse.json(response.data);
-        } catch (apiError: any) {
-            console.error('Backend API error during user update:', apiError.message);
-
-            // For development, provide mock response
-            if (process.env.NODE_ENV === 'development') {
-                console.log('Development mode: Returning mock user update response');
-                return NextResponse.json({
-                    id: userId,
-                    ...body,
-                    updated_at: new Date().toISOString()
-                });
-            }
-
-            // Return proper error response
-            const status = apiError.response?.status || 500;
-            const message = apiError.response?.data?.detail || 'Failed to update user';
-
-            return NextResponse.json(
-                { error: message },
-                { status: status }
-            );
-        }
+        // Return the updated user data
+        return NextResponse.json(response.data);
     } catch (error: any) {
-        console.error('Error in user update process:', error);
+        console.error('Admin users/id API - Error:', error);
 
-        // Return proper error response
+        // Get error details
+        const status = error.response?.status || 500;
+        const errorData = error.response?.data;
+
         return NextResponse.json(
-            { error: 'Failed to process user update request' },
-            { status: 500 }
+            {
+                error: errorData?.detail || 'Failed to update user',
+                details: errorData
+            },
+            { status }
         );
     }
 }
 
-export async function DELETE(request: Request, { params }: UserParams) {
+export async function DELETE(request: Request, { params }: { params: { id: string } }) {
     try {
-        const userId = params.id;
-        let finalToken = getTokenFromRequest(request);
+        // Get token from request
+        const token = getTokenFromRequest(request);
 
-        // If no token is available, try to login with service account
-        if (!finalToken) {
-            try {
-                const serviceEmail = process.env.SERVICE_ACCOUNT_EMAIL || 'admin@example.com';
-                const servicePassword = process.env.SERVICE_ACCOUNT_PASSWORD || 'admin123';
-
-                const authResponse = await loginToBackend(serviceEmail, servicePassword);
-                finalToken = authResponse.access_token;
-
-                console.log('Successfully obtained service token for admin user deletion');
-            } catch (loginError) {
-                console.error('Failed to obtain service token:', loginError);
-                return NextResponse.json(
-                    { error: 'Authentication failed' },
-                    { status: 401 }
-                );
-            }
-        }
-
-        if (!finalToken) {
+        if (!token) {
+            console.error('Admin users/id API - No token found in request');
             return NextResponse.json(
-                { error: 'Unauthorized - No valid token found' },
+                { error: 'Authentication required. Please log in again.' },
                 { status: 401 }
             );
         }
 
-        const backendURL = getBackendURL();
-        console.log(`Deleting user ${userId}`);
+        const userId = params.id;
+        console.log(`Admin users/id API - Deleting user with ID: ${userId}`);
 
-        try {
-            // Forward the request to the backend with the token
-            await axios.delete(`${backendURL}/api/admin/users/${userId}`, {
-                headers: {
-                    Authorization: `Bearer ${finalToken}`
-                }
-            });
+        // Call backend
+        await callBackendUserAPI(userId, token, 'DELETE');
 
-            return NextResponse.json({ success: true, message: 'User deleted successfully' });
-        } catch (apiError: any) {
-            console.error('Backend API error during user deletion:', apiError.message);
-
-            // For development, always return success in development mode
-            if (process.env.NODE_ENV === 'development') {
-                console.log('Development mode: Returning mock successful deletion response');
-                return NextResponse.json({ success: true, message: 'User deleted successfully (mock)' });
-            }
-
-            // Return proper error response
-            const status = apiError.response?.status || 500;
-            const message = apiError.response?.data?.detail || 'Failed to delete user';
-
-            return NextResponse.json(
-                { error: message },
-                { status: status }
-            );
-        }
+        // Return success response
+        return new NextResponse(null, { status: 204 });
     } catch (error: any) {
-        console.error('Error in user deletion process:', error);
+        console.error('Admin users/id API - Error:', error);
 
-        // Return proper error response
+        // Get error details
+        const status = error.response?.status || 500;
+        const errorData = error.response?.data;
+
         return NextResponse.json(
-            { error: 'Failed to process user deletion request' },
-            { status: 500 }
+            {
+                error: errorData?.detail || 'Failed to delete user',
+                details: errorData
+            },
+            { status }
         );
     }
 } 

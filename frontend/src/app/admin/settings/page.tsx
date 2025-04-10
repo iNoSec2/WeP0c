@@ -99,33 +99,6 @@ function AdminSettingsPage() {
     }
   };
 
-  const handleInitializeDatabase = async () => {
-    try {
-      if (!confirm('This will create default users and a project. Continue?')) {
-        return;
-      }
-
-      const response = await axios.post('/api/init-db');
-      toast({
-        title: 'Database initialized',
-        description: 'Default users and project have been created.',
-      });
-
-      // Show credentials
-      toast({
-        title: 'Login credentials',
-        description: 'Admin: admin/adminpassword, Client: client/clientpassword, Pentester: pentester/pentesterpassword',
-        duration: 10000,
-      });
-    } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error.response?.data?.error || 'Failed to initialize database',
-        variant: 'destructive',
-      });
-    }
-  };
-
   return (
     <DashboardLayout>
       <div className="container p-6 mx-auto">
@@ -380,24 +353,6 @@ function AdminSettingsPage() {
                       <Button onClick={handleSystemBackup}>
                         <Server className="mr-2 h-4 w-4" />
                         Create Backup
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="rounded-md bg-muted p-4 mt-4">
-                    <div className="flex items-center gap-4">
-                      <Database className="h-5 w-5 text-amber-500" />
-                      <div>
-                        <h3 className="text-sm font-medium">Initialize Database</h3>
-                        <p className="text-sm text-muted-foreground">
-                          Create default users (admin, client, pentester) and an example project.
-                        </p>
-                      </div>
-                    </div>
-                    <div className="mt-4 flex justify-end">
-                      <Button onClick={handleInitializeDatabase} variant="outline">
-                        <Database className="mr-2 h-4 w-4" />
-                        Initialize Database
                       </Button>
                     </div>
                   </div>

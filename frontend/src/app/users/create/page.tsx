@@ -26,12 +26,14 @@ export default function CreateUserPage() {
         email: "",
         password: "",
         role: Role.CLIENT,
+        full_name: "",
+        company: "",
     });
 
     const createUserMutation = useMutation({
         mutationFn: async (userData: typeof formData) => {
             const response = await axios.post(
-                `${process.env.NEXT_PUBLIC_API_URL}/api/users`,
+                `/api/users`,
                 userData,
                 { withCredentials: true }
             );
@@ -44,13 +46,17 @@ export default function CreateUserPage() {
             });
             router.push("/users");
         },
-        onError: (error) => {
+        onError: (error: any) => {
+            console.error("Error creating user:", error);
+
+            // Provide more detailed error messages when available
+            const errorMessage = error.response?.data?.error || "Failed to create user. Please try again.";
+
             toast({
                 title: "Error",
-                description: "Failed to create user. Please try again.",
+                description: errorMessage,
                 variant: "destructive",
             });
-            console.error("Error creating user:", error);
         },
     });
 
@@ -108,6 +114,26 @@ export default function CreateUserPage() {
                         </div>
 
                         <div className="space-y-2">
+                            <Label htmlFor="full_name">Full Name</Label>
+                            <Input
+                                id="full_name"
+                                name="full_name"
+                                value={formData.full_name}
+                                onChange={handleChange}
+                            />
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label htmlFor="company">Company</Label>
+                            <Input
+                                id="company"
+                                name="company"
+                                value={formData.company}
+                                onChange={handleChange}
+                            />
+                        </div>
+
+                        <div className="space-y-2">
                             <Label htmlFor="role">Role</Label>
                             <Select
                                 value={formData.role}
@@ -119,9 +145,11 @@ export default function CreateUserPage() {
                                     <SelectValue placeholder="Select a role" />
                                 </SelectTrigger>
                                 <SelectContent>
+                                    <SelectItem value={Role.SUPER_ADMIN}>Super Admin</SelectItem>
                                     <SelectItem value={Role.ADMIN}>Admin</SelectItem>
                                     <SelectItem value={Role.PENTESTER}>Pentester</SelectItem>
                                     <SelectItem value={Role.CLIENT}>Client</SelectItem>
+                                    <SelectItem value={Role.USER}>User</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>

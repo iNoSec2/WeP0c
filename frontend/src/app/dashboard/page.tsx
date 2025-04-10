@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import DashboardLayout from "@/components/DashboardLayout";
 import { PocDisplay } from "@/components/PocDisplay";
-import WelcomeMessage from "@/components/WelcomeMessage";
 import { RoleGuard } from "@/components/auth/RoleGuard";
 import { useAuth } from "@/contexts/AuthContext";
 import { Role } from "@/types/user";
@@ -63,8 +62,29 @@ interface Vulnerability {
 export default function DashboardPage() {
     const { user } = useAuth();
     const [activeTab, setActiveTab] = React.useState("overview");
+    const [showWelcomeBanner, setShowWelcomeBanner] = React.useState(false);
 
     const queryClient = useQueryClient();
+
+    // Effect to remove any welcome banners
+    useEffect(() => {
+        // Function to remove welcome banners
+        const removeWelcomeBanners = () => {
+            const banners = document.querySelectorAll('div[role="alert"], [class*="welcome-banner"]');
+            banners.forEach(banner => {
+                const text = banner.textContent || '';
+                if (text.includes('Welcome to P0cit') || text.includes('Initialize Database')) {
+                    banner.remove();
+                }
+            });
+        };
+
+        // Execute on mount and after a delay
+        removeWelcomeBanners();
+        const timer = setTimeout(removeWelcomeBanners, 500);
+
+        return () => clearTimeout(timer);
+    }, []);
 
     // Fetch dashboard stats
     const { data: stats, isLoading: statsLoading } = useQuery<DashboardStats>({
@@ -115,8 +135,6 @@ export default function DashboardPage() {
     return (
         <DashboardLayout>
             <div className="p-6 space-y-6">
-                <WelcomeMessage />
-
                 <div className="flex items-center justify-between">
                     <h1 className="text-3xl font-bold">Dashboard</h1>
 

@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server';
-import apiService from '@/lib/api/apiService';
-import { getToken } from '@/lib/api';
-import { loginToBackend } from '@/lib/api/loginUtil';
+import axios from 'axios';
+import { getBackendURL } from '@/lib/api';
 
-// Helper function to get token
+// Helper function to get token from request
 const getTokenFromRequest = (request: Request) => {
     const cookies = request.headers.get('cookie') || '';
+    console.log('Admin users API - Full cookie string:', cookies);
+
     const tokenMatch = cookies.match(/token=([^;]+)/);
     const token = tokenMatch ? decodeURIComponent(tokenMatch[1]) : null;
 
@@ -13,110 +14,150 @@ const getTokenFromRequest = (request: Request) => {
     const authHeader = request.headers.get('Authorization');
     const headerToken = authHeader?.split(' ')[1];
 
+    console.log('Admin users API - Token extraction results:', {
+        hasCookieToken: !!token,
+        hasHeaderToken: !!headerToken,
+        source: token ? 'cookie' : headerToken ? 'header' : 'none'
+    });
+
     // Use token from cookie or header
     return token || headerToken;
 };
 
-/**
- * Get service account token when needed
- */
-async function getServiceToken() {
-    try {
-        // Use environment variables for service account credentials
-        const serviceEmail = process.env.SERVICE_ACCOUNT_EMAIL || 'admin@example.com';
-        const servicePassword = process.env.SERVICE_ACCOUNT_PASSWORD || 'admin123';
-
-        // Login to get a valid token
-        const authResponse = await loginToBackend(serviceEmail, servicePassword);
-        console.log('Successfully obtained service token');
-        return authResponse.access_token;
-    } catch (error) {
-        console.error('Failed to obtain service token:', error);
-        return null;
-    }
-}
-
 export async function GET(request: Request) {
     try {
-        // Get token from request or service account if needed
-        let finalToken = getTokenFromRequest(request);
-        if (!finalToken) {
-            finalToken = await getServiceToken();
-        }
+        // Get token from request
+        const token = getTokenFromRequest(request);
 
-        // If still no token, return unauthorized
-        if (!finalToken) {
+        if (!token) {
+            console.error('Admin API - No authentication token found in request');
             return NextResponse.json(
-                { error: 'Unauthorized - No valid token found' },
+                { error: 'Authentication required. Please log in again.' },
                 { status: 401 }
             );
         }
 
-        // Use the centralized API service to fetch users
-        const response = await apiService.get('/api/users');
+        // Get URL parameters
+        const url = new URL(request.url);
+        const skip = url.searchParams.get('skip') || '0';
+        const limit = url.searchParams.get('limit') || '100';
+        const role = url.searchParams.get('role');
 
-        if (response.success) {
-            return NextResponse.json(response.data);
-        } else {
-            // Handle errors with appropriate status code
+        // Construct backend URL with all parameters
+        const backendURL = getBackendURL();
+        let backendEndpoint = `${backendURL}/api/admin/users?skip=${skip}&limit=${limit}`;
+
+        if (role) {
+            backendEndpoint += `&role=${encodeURIComponent(role.toUpperCase())}`;
+        }
+
+        console.log(`Admin API - Sending direct request to: ${backendEndpoint}`);
+        console.log('Admin API - Token preview:', token.substring(0, 15) + '...');
+
+        // Make direct request to backend
+        const response = await axios.get(backendEndpoint, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            timeout: 15000
+        });
+
+        console.log(`Admin API - Received successful response with ${response.data.length} users`);
+
+        // Return the backend response directly
+        return NextResponse.json(response.data);
+    } catch (error: any) {
+        console.error('Admin API - Error fetching users:', error);
+
+        // Extract detailed error information
+        const status = error.response?.status || 500;
+        const errorData = error.response?.data;
+
+        console.error('Admin API - Error details:', {
+            status,
+            url: error.config?.url,
+            message: error.message,
+            data: errorData
+        });
+
+        if (status === 401) {
             return NextResponse.json(
                 {
-                    error: response.error?.message || 'Failed to fetch users',
-                    details: response.error?.details
+                    error: 'Authentication required. Please log in again.',
+                    details: errorData || { detail: 'Not authenticated' }
                 },
-                { status: response.error?.code || 500 }
+                { status: 401 }
             );
         }
-    } catch (error) {
-        console.error('Unexpected error in admin users request:', error);
+
         return NextResponse.json(
-            { error: 'Failed to process admin users request' },
-            { status: 500 }
+            {
+                error: errorData?.detail || 'Failed to fetch users',
+                details: errorData || { message: error.message }
+            },
+            { status }
         );
     }
 }
 
 export async function POST(request: Request) {
     try {
-        // Get token from request or service account if needed
-        let finalToken = getTokenFromRequest(request);
-        if (!finalToken) {
-            finalToken = await getServiceToken();
-        }
+        // Get token from request
+        const token = getTokenFromRequest(request);
 
-        // If still no token, return unauthorized
-        if (!finalToken) {
+        if (!token) {
+            console.error('Admin API - No authentication token found in request');
             return NextResponse.json(
-                { error: 'Unauthorized - No valid token found' },
+                { error: 'Authentication required. Please log in again.' },
                 { status: 401 }
             );
         }
 
-        // Parse the request body
-        const userData = await request.json();
-        console.log('Creating user with data:', userData);
+        // Parse request body
+        const body = await request.json();
 
-        // Use the centralized API service to create the user
-        const response = await apiService.post('/api/users', userData);
+        // Construct backend URL
+        const backendURL = getBackendURL();
+        const backendEndpoint = `${backendURL}/api/admin/users`;
 
-        if (response.success) {
-            // Return successful creation with 201 status
-            return NextResponse.json(response.data, { status: 201 });
-        } else {
-            // Return error with appropriate status code
-            return NextResponse.json(
-                {
-                    error: response.error?.message || 'Failed to create user',
-                    details: response.error?.details
-                },
-                { status: response.error?.code || 500 }
-            );
-        }
-    } catch (error) {
-        console.error('Unexpected error in user creation process:', error);
+        console.log(`Admin API - Creating user via direct API call to: ${backendEndpoint}`);
+
+        // Make direct request to backend
+        const response = await axios.post(backendEndpoint, body, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            timeout: 15000
+        });
+
+        console.log('Admin API - User created successfully');
+
+        // Return the backend response directly
+        return NextResponse.json(response.data, { status: 201 });
+    } catch (error: any) {
+        console.error('Admin API - Error creating user:', error);
+
+        // Extract detailed error information
+        const status = error.response?.status || 500;
+        const errorData = error.response?.data;
+
+        console.error('Admin API - Error details:', {
+            status,
+            url: error.config?.url,
+            message: error.message,
+            data: errorData
+        });
+
         return NextResponse.json(
-            { error: 'Failed to process user creation request' },
-            { status: 500 }
+            {
+                error: errorData?.detail || 'Failed to create user',
+                details: errorData || { message: error.message }
+            },
+            { status }
         );
     }
 }

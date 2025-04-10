@@ -8,14 +8,10 @@ const API_CONFIG = {
     // Docker container URL - inside Docker network
     DOCKER_URL: 'http://api:8001',
 
-    // Local development URLs (only used as fallbacks)
-    LOCAL_URLS: [
-        'http://localhost:8001',
-        'http://127.0.0.1:8001',
-    ],
+    // Remove LOCAL_URLS array since we'll always use Docker service name
 
-    // Environment variable override (from .env)
-    ENV_URL: process.env.NEXT_PUBLIC_API_URL,
+    // Environment variable override (from .env) - only used in production
+    ENV_URL: process.env.NODE_ENV === 'production' ? process.env.NEXT_PUBLIC_API_URL : undefined,
 
     // Request timeouts (ms)
     DEFAULT_TIMEOUT: 15000,

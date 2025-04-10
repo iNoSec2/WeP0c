@@ -1,28 +1,28 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
     reactStrictMode: true,
-    // Use a conditional rewrite based on environment
     async rewrites() {
         return process.env.NODE_ENV === 'production'
             ? [
                 // In production, use the external API URL
                 {
                     source: '/api/:path*',
-                    destination: `${process.env.NEXT_PUBLIC_API_URL || 'http://p0cit-app:8001'}/api/:path*`,
+                    destination: `${process.env.NEXT_PUBLIC_API_URL || 'http://api:8001'}/api/:path*`,
                 },
             ]
             : [
-                // In development, use the Docker service name inside the frontend container
-                // but not for the Next.js API routes which we want to handle ourselves
+                // In development, always use the Docker service name
                 {
-                    source: '/direct-api/:path*',
+                    source: '/api/:path*',
                     destination: 'http://api:8001/api/:path*',
                 },
             ];
     },
     // We need these environment variables at build time
     env: {
-        NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001',
+        NEXT_PUBLIC_API_URL: process.env.NODE_ENV === 'production'
+            ? (process.env.NEXT_PUBLIC_API_URL || 'http://api:8001')
+            : 'http://api:8001',
     },
 };
 

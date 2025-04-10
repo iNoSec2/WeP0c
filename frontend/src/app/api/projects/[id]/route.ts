@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import axios from 'axios';
 import { getBackendURL } from '@/lib/api';
 import { loginToBackend } from '@/lib/api/loginUtil';
+import { serializeProjectFromBackend } from '@/lib/api/serializers';
 
 export async function GET(
     request: Request,
@@ -60,26 +61,34 @@ export async function GET(
             }
         });
 
-        return NextResponse.json(response.data);
+        // Get the project data and serialize to frontend format
+        const projectData = serializeProjectFromBackend(response.data);
+
+        // If project has client_id, fetch client details to enhance the response
+        if (projectData.client_id) {
+            try {
+                // Make a request to get client information
+                const clientResponse = await axios.get(`${backendURL}/api/users/${projectData.client_id}`, {
+                    headers: {
+                        Authorization: `Bearer ${finalToken}`
+                    }
+                });
+
+                // Enhance project with client information
+                projectData.client = {
+                    id: clientResponse.data.id,
+                    username: clientResponse.data.username || 'Unknown',
+                    email: clientResponse.data.email
+                };
+            } catch (clientError) {
+                console.warn(`Failed to fetch client details for project ${projectId}:`, clientError.message);
+                // Continue without client enhancement if fetch fails
+            }
+        }
+
+        return NextResponse.json(projectData);
     } catch (error: any) {
         console.error('Error fetching project details:', error);
-
-        // For development, return mock data if the API fails
-        if (process.env.NODE_ENV === 'development') {
-            console.log('Returning mock project data for development');
-            return NextResponse.json({
-                id: params.id,
-                name: "Sample Project",
-                description: "This is a sample project description for development purposes. The actual project data could not be loaded.",
-                client_id: "c1234567-89ab-cdef-0123-456789abcdef",
-                status: "planning",
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
-                start_date: new Date().toISOString(),
-                end_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-                pentester_ids: ["p1234567-89ab-cdef-0123-456789abcdef"]
-            });
-        }
 
         // Return proper error response
         const status = error.response?.status || 500;
@@ -153,7 +162,10 @@ export async function PATCH(
             }
         });
 
-        return NextResponse.json(response.data);
+        // Serialize response to frontend format
+        const serializedProject = serializeProjectFromBackend(response.data);
+
+        return NextResponse.json(serializedProject);
     } catch (error: any) {
         console.error('Error updating project:', error);
 

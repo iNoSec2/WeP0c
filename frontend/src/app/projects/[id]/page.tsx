@@ -116,7 +116,14 @@ export default function ProjectDetailPage() {
                         <CardContent>
                             <div className="flex items-center">
                                 <Users className="h-4 w-4 mr-2 text-muted-foreground" />
-                                <span>{project.client_id}</span>
+                                {project.client ? (
+                                    <span>
+                                        {project.client.username || "Unknown Client"}
+                                        {project.client.email && ` (${project.client.email})`}
+                                    </span>
+                                ) : (
+                                    <span>{project.client_id || "No client assigned"}</span>
+                                )}
                             </div>
                         </CardContent>
                     </Card>

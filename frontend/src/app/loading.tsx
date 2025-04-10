@@ -1,11 +1,7 @@
 'use client';
 
-import { LoadingScreen } from '@/components/ui/loading';
+import LoadingScreen from '@/components/ui/loading/LoadingScreen';
 
 export default function RootLoading() {
-  return (
-    <div className="min-h-screen">
-      <LoadingScreen text="Loading your secure environment..." />
-    </div>
-  );
+  return <LoadingScreen />;
 }

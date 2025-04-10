@@ -69,10 +69,10 @@ export default function AdminDashboard() {
         },
     });
 
-    const { data: projects = [], isLoading: projectsLoading } = useQuery<Project[]>({
+    const { data: projects = [], isLoading: isProjectsLoading } = useQuery({
         queryKey: ['projects'],
         queryFn: async () => {
-            const response = await axios.get('/api/projects/');
+            const response = await axios.get('/api/projects');
             return response.data;
         },
     });
@@ -101,7 +101,7 @@ export default function AdminDashboard() {
 
     const createProjectMutation = useMutation({
         mutationFn: async (projectData: typeof newProject) => {
-            const response = await axios.post('/api/projects/projects/', projectData);
+            const response = await axios.post('/api/projects', projectData);
             return response.data;
         },
         onSuccess: () => {
@@ -142,7 +142,7 @@ export default function AdminDashboard() {
 
     const deleteProjectMutation = useMutation({
         mutationFn: async (projectId: string) => {
-            await axios.delete(`/api/projects/projects/${projectId}`);
+            await axios.delete(`/api/projects/${projectId}`);
         },
         onSuccess: () => {
             toast({

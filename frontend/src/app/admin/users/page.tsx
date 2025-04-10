@@ -36,6 +36,7 @@ import {
 import { useToast } from "@/components/ui/use-toast";
 import DashboardLayout from "@/components/DashboardLayout";
 import { PlusCircle, Search, Edit, Trash2, UserPlus } from "lucide-react";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 interface User {
     id: string;
@@ -58,6 +59,8 @@ function AdminUsersPage() {
         password: "",
         role: "client",
     });
+    const [selectedUser, setSelectedUser] = useState<User | null>(null);
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
     const { data: users = [], isLoading } = useQuery<User[]>({
         queryKey: ["users"],
@@ -162,6 +165,11 @@ function AdminUsersPage() {
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         createUserMutation.mutate(formData);
+    };
+
+    const handleDeleteUser = (user: User) => {
+        setSelectedUser(user);
+        setIsDeleteDialogOpen(true);
     };
 
     return (
@@ -353,11 +361,7 @@ function AdminUsersPage() {
                                                 <Button
                                                     variant="ghost"
                                                     size="icon"
-                                                    onClick={() => {
-                                                        if (window.confirm("Are you sure you want to delete this user?")) {
-                                                            deleteUserMutation.mutate(user.id);
-                                                        }
-                                                    }}
+                                                    onClick={() => handleDeleteUser(user)}
                                                 >
                                                     <Trash2 className="h-4 w-4" />
                                                 </Button>
@@ -370,6 +374,20 @@ function AdminUsersPage() {
                     </div>
                 )}
             </div>
+
+            <ConfirmDialog
+                isOpen={isDeleteDialogOpen}
+                onClose={() => setIsDeleteDialogOpen(false)}
+                onConfirm={() => {
+                    if (selectedUser) {
+                        deleteUserMutation.mutate(selectedUser.id);
+                    }
+                }}
+                title="Delete User"
+                description={`Are you sure you want to delete ${selectedUser?.username || "this user"}? This action cannot be undone.`}
+                confirmText="Delete"
+                cancelText="Cancel"
+            />
         </DashboardLayout>
     );
 }

@@ -1,5 +1,5 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from "axios";
-import { getBackendURL, getToken } from ".";
+import { getBackendURL, getToken } from "./index";
 
 // Define consistent API host configurations with fallbacks
 // In Docker environment, only the container name works reliably
@@ -7,13 +7,16 @@ const API_HOSTS = [
     'http://api:8001',          // Docker container name - only reliable option in Docker
 ].filter(Boolean); // Remove empty strings
 
-// Create a base axios instance for API requests
+// Create an axios instance with custom configuration
 const apiClient = axios.create({
+    baseURL: getBackendURL().replace('localhost', '127.0.0.1'), // Force IPv4 address
     headers: {
         "Content-Type": "application/json",
     },
-    timeout: 10000, // 10 second timeout
-    baseURL: 'http://api:8001' // Always use the Docker service name
+    // Disable proxies to avoid issues
+    proxy: false,
+    // Set timeout to 10 seconds
+    timeout: 10000,
 });
 
 // Initialize auth headers from localStorage if token exists (client-side only)
@@ -25,43 +28,49 @@ if (typeof window !== 'undefined') {
     }
 }
 
-// Add request interceptor to attach auth token to all requests
+// Add a request interceptor to add auth token to each request
 apiClient.interceptors.request.use(
     (config) => {
-        // For SSR, we can't access localStorage so we skip token injection
-        if (typeof window === 'undefined') {
-            return config;
-        }
-
+        // Add token from localStorage if available
         const token = getToken();
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
         }
+
+        // Modify hostname to ensure IPv4 is used
+        if (config.baseURL && config.baseURL.includes('localhost')) {
+            config.baseURL = config.baseURL.replace('localhost', '127.0.0.1');
+        }
+
+        if (config.url && config.url.includes('localhost')) {
+            config.url = config.url.replace('localhost', '127.0.0.1');
+        }
+
+        // Force IPv4 usage via Host header
+        const baseUrl = config.baseURL || '';
+        config.headers.Host = baseUrl.replace(/^https?:\/\//, '').split(':')[0];
+
         return config;
     },
     (error) => {
-        console.error('API Client Request Error:', error);
         return Promise.reject(error);
     }
 );
 
-// Add response interceptor to handle common errors
+// Add a response interceptor for better error handling
 apiClient.interceptors.response.use(
     (response) => response,
     (error) => {
-        // Handle specific error cases (like 401, 403, etc)
-        if (error.response) {
-            // The request was made and the server responded with a status code
-            // outside of the range of 2xx
-            if (error.response.status === 401) {
-                console.warn('Unauthorized request - redirecting to login');
-                // Handle unauthorized (e.g., redirect to login)
-                if (typeof window !== 'undefined') {
-                    // Only redirect in browser context
-                    window.location.href = '/login';
-                }
-            }
+        // Handle connection errors with better messages
+        if (error.code === 'ECONNREFUSED') {
+            console.error('Connection refused error:', {
+                message: error.message,
+                url: error.config?.url,
+                baseURL: error.config?.baseURL
+            });
+            error.isConnectionError = true;
         }
+
         return Promise.reject(error);
     }
 );

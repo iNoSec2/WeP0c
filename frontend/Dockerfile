@@ -1,26 +1,43 @@
-FROM node:18-alpine
+# Stage 1: Build the application
+FROM node:18-alpine AS builder
 
 WORKDIR /app
 
 # Copy package files
-COPY package.json package-lock.json* ./
+COPY package.json package-lock.json ./
 
-# Install dependencies (using install instead of ci to handle mismatches)
-RUN npm install
+# Install dependencies
+RUN npm ci
 
-# Install additional packages for markdown support
-RUN npm install markdown-it react-markdown-editor-lite react-markdown rehype-raw rehype-sanitize remark-gfm framer-motion
-
-# Copy source code
+# Copy the rest of the application code
 COPY . .
 
-# Set environment variables
-ENV NEXT_PUBLIC_API_URL=http://localhost:8001
-ENV NEXT_TELEMETRY_DISABLED 1
-ENV NODE_ENV development
+# Set necessary environment variables
+ENV NODE_ENV=production
+ENV CONTAINER_ENV=true
+ENV IS_DOCKER=true
 
-# Expose port
+# Build the application
+RUN npm run build
+
+# Stage 2: Create the production image
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Copy built app from builder stage
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package.json ./package.json
+COPY --from=builder /app/public ./public
+
+# Set environment variables for runtime
+ENV NODE_ENV=production
+ENV CONTAINER_ENV=true
+ENV IS_DOCKER=true
+
+# Expose the port the app runs on
 EXPOSE 3000
 
-# Default command
-CMD ["npm", "run", "dev"]
+# Start the application
+CMD ["npm", "start"]

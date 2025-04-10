@@ -20,14 +20,21 @@ export const getBackendURL = () => {
         return apiUrl;
     }
 
-    // For server-side calls (SSR) in Next.js, use the explicit service name from docker-compose
-    // This ensures consistent behavior across all server-side API calls
+    // For server-side calls (SSR) in Next.js
     if (typeof window === 'undefined') {
-        return "http://api:8001";
+        // Check if we're in a Docker/container environment
+        if (process.env.CONTAINER_ENV === 'true') {
+            // Use the service name defined in docker-compose
+            return "http://api:8001";
+        } else {
+            // When running on host machine (not in container)
+            return "http://127.0.0.1:8001"; // Explicit IPv4 address
+        }
     }
 
-    // For client-side (browser) calls, always use explicit IPv4 address to avoid IPv6 issues
-    // The explicit IPv4 address avoids ECONNREFUSED errors with ::1 (IPv6 localhost)
+    // For client-side (browser) calls
+    // ALWAYS use explicit IPv4 address to avoid IPv6 issues
+    // This prevents ECONNREFUSED errors with ::1 (IPv6 localhost)
     return "http://127.0.0.1:8001";
 };
 

@@ -11,6 +11,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { Send, Edit, Trash2 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import axios from 'axios';
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 interface Comment {
     id: string;
@@ -43,6 +44,8 @@ export const MissionCommentList: React.FC<MissionCommentListProps> = ({
     const [isLoading, setIsLoading] = useState(false);
     const { user } = useAuth();
     const { toast } = useToast();
+    const [commentToDelete, setCommentToDelete] = useState<string | null>(null);
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
     // Fetch comments
     const fetchComments = async () => {
@@ -130,15 +133,15 @@ export const MissionCommentList: React.FC<MissionCommentListProps> = ({
         }
     };
 
-    // Delete a comment
-    const handleDeleteComment = async (commentId: string) => {
-        if (!confirm('Are you sure you want to delete this comment?')) return;
+    // Update delete comment handling
+    const confirmDeleteComment = async () => {
+        if (!commentToDelete) return;
 
         setIsLoading(true);
         try {
             const endpoint = pocId
-                ? `/api/missions/${missionId}/pocs/${pocId}/comments/${commentId}`
-                : `/api/missions/${missionId}/comments/${commentId}`;
+                ? `/api/missions/${missionId}/pocs/${pocId}/comments/${commentToDelete}`
+                : `/api/missions/${missionId}/comments/${commentToDelete}`;
 
             await axios.delete(endpoint);
 
@@ -155,7 +158,14 @@ export const MissionCommentList: React.FC<MissionCommentListProps> = ({
             });
         } finally {
             setIsLoading(false);
+            setCommentToDelete(null);
         }
+    };
+
+    // Open delete confirmation dialog
+    const openDeleteDialog = (commentId: string) => {
+        setCommentToDelete(commentId);
+        setIsDeleteDialogOpen(true);
     };
 
     // Start editing a comment
@@ -245,7 +255,7 @@ export const MissionCommentList: React.FC<MissionCommentListProps> = ({
                                                     <Button
                                                         variant="ghost"
                                                         size="icon"
-                                                        onClick={() => handleDeleteComment(comment.id)}
+                                                        onClick={() => openDeleteDialog(comment.id)}
                                                         className="h-6 w-6 text-destructive"
                                                     >
                                                         <Trash2 className="h-3 w-3" />
@@ -288,6 +298,17 @@ export const MissionCommentList: React.FC<MissionCommentListProps> = ({
                     </div>
                 </CardContent>
             </Card>
+
+            {/* Add the confirmation dialog */}
+            <ConfirmDialog
+                isOpen={isDeleteDialogOpen}
+                onClose={() => setIsDeleteDialogOpen(false)}
+                onConfirm={confirmDeleteComment}
+                title="Delete Comment"
+                description="Are you sure you want to delete this comment? This action cannot be undone."
+                confirmText="Delete"
+                cancelText="Cancel"
+            />
         </div>
     );
 }; 
