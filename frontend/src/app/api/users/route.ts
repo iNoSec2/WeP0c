@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import axios from 'axios';
 import { getBackendURL } from '@/lib/api';
-import { serializeUsersFromBackend } from '@/lib/api/serializers';
-import { userRoutes } from '@/lib/api/routes';
+import { serializeUsersFromBackend, serializeUserToBackend } from '@/lib/api/serializers';
+import { userRoutes, normalizeRole } from '@/lib/api/routes';
+import { FEATURES } from '@/lib/constants';
 
 // Helper function to get token from request
 const getTokenFromRequest = (request: Request) => {
@@ -34,6 +35,10 @@ async function callBackendAdminAPI(endpoint: string, token: string, method: stri
     console.log(`Making ${method} request to backend:`, url);
     console.log('Using token:', token ? `${token.substring(0, 10)}...` : 'NO TOKEN');
 
+    if (FEATURES.DETAILED_ERRORS && method !== 'GET' && data) {
+        console.log('Request payload:', JSON.stringify(data, null, 2));
+    }
+
     try {
         const response = await axios({
             method,
@@ -59,6 +64,13 @@ async function callBackendAdminAPI(endpoint: string, token: string, method: stri
             message: error.message,
             data: error.response?.data
         });
+
+        // More detailed debugging for 422 errors
+        if (error.response?.status === 422 && FEATURES.DETAILED_ERRORS) {
+            console.error('Validation errors:', error.response.data);
+            console.error('Request payload that caused 422:', JSON.stringify(data, null, 2));
+        }
+
         throw error;
     }
 }
@@ -90,21 +102,43 @@ export async function GET(request: Request) {
             tokenLength: token.length
         });
 
-        // Construct backend URL directly using the admin endpoint
-        let backendEndpoint = `/api/admin/users?skip=${skip}&limit=${limit}`;
+        // Normalize the role
+        const normalizedRole = normalizeRole(role);
 
-        // Add role filter if specified
-        if (role) {
-            backendEndpoint += `&role=${encodeURIComponent(role.toUpperCase())}`;
+        // Determine the endpoint based on the role using centralized route configuration
+        let endpoint;
+        if (!normalizedRole || normalizedRole === 'all') {
+            endpoint = userRoutes.adminUsers;
+        } else {
+            // Use filter function from userRoutes
+            endpoint = userRoutes.filter(normalizedRole);
         }
 
+        // Add pagination parameters
+        endpoint = `${endpoint}${endpoint.includes('?') ? '&' : '?'}skip=${skip}&limit=${limit}`;
+
+        console.log(`Fetching from endpoint: ${endpoint}`);
+
         // Make direct request to backend with token
-        const response = await callBackendAdminAPI(backendEndpoint, token);
+        const response = await callBackendAdminAPI(endpoint, token);
 
         // Return the serialized users
         return NextResponse.json(serializeUsersFromBackend(response.data));
     } catch (error: any) {
         console.error('Error in users endpoint:', error);
+
+        // Check for network connection errors
+        if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND') {
+            console.error('Connection error - backend may be unavailable');
+            return NextResponse.json(
+                {
+                    status: 503,
+                    message: 'Backend service unavailable. Please try again later.',
+                    details: { error: error.message }
+                },
+                { status: 503 }
+            );
+        }
 
         // Get detailed error information
         const status = error.response?.status || 500;
@@ -155,11 +189,46 @@ export async function POST(request: Request) {
         }
 
         // Extract request body
-        const body = await request.json();
+        const requestBody = await request.json();
+        console.log('Original request body:', requestBody);
 
-        // Make direct request to backend admin API
-        const backendEndpoint = '/api/admin/users';
-        const response = await callBackendAdminAPI(backendEndpoint, token, 'POST', body);
+        // Ensure role is uppercase for backend compatibility
+        const userRole = requestBody.role || 'USER';
+        const role = userRole.toUpperCase();
+
+        // Prepare data for backend with proper serialization
+        const userData = {
+            ...requestBody,
+            role: role // Ensure role is UPPERCASE for backend
+        };
+
+        // Properly serialize the user data for backend compatibility
+        const serializedData = serializeUserToBackend(userData);
+        console.log('Serialized data for backend:', serializedData);
+
+        // Determine the appropriate endpoint based on role
+        let endpoint;
+        if (userData.role) {
+            const normalizedRole = normalizeRole(userData.role);
+
+            // Use specific creation endpoints for clients and pentesters
+            if (normalizedRole === 'client') {
+                endpoint = userRoutes.createClient;
+            } else if (normalizedRole === 'pentester') {
+                endpoint = userRoutes.pentesters;
+            } else {
+                // Default to admin users endpoint for other roles
+                endpoint = userRoutes.adminUsers;
+            }
+        } else {
+            // If no role specified, use admin endpoint
+            endpoint = userRoutes.adminUsers;
+        }
+
+        console.log(`Creating user via endpoint: ${endpoint}`);
+
+        // Make direct request to backend with properly serialized data
+        const response = await callBackendAdminAPI(endpoint, token, 'POST', serializedData);
 
         // Return the created user
         return NextResponse.json(response.data, { status: 201 });

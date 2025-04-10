@@ -1,74 +1,41 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import axios from 'axios';
 import { getBackendURL } from '@/lib/api';
 import { loginToBackend } from '@/lib/api/loginUtil';
-import { getAuthHeaders } from '@/lib/api/permissionUtils';
-import { getUserRoleFromToken } from '@/lib/api/tokenUtils';
+import { extractTokenFromRequest, createPermissionHeaders, withPermission, unauthorizedResponse } from '@/lib/api/serverAuth';
+import { UserRole } from '@/lib/api/users';
 
-export async function GET(request: Request) {
-    try {
-        // Get token from cookies
-        const cookies = request.headers.get('cookie') || '';
-        const tokenMatch = cookies.match(/token=([^;]+)/);
-        const token = tokenMatch ? decodeURIComponent(tokenMatch[1]) : null;
+export const GET = withPermission(
+    async (req: NextRequest, token: string, role?: UserRole) => {
+        try {
+            // Forward request to backend with permission headers
+            const backendURL = getBackendURL();
+            const headers = createPermissionHeaders(role, token);
 
-        // Also check Authorization header as fallback
-        const authHeader = request.headers.get('Authorization');
-        const headerToken = authHeader?.split(' ')[1];
+            console.log('Fetching vulnerabilities from:', `${backendURL}/api/vulnerabilities`);
+            const response = await axios.get(`${backendURL}/api/vulnerabilities`, { headers });
 
-        // Use token from cookie or header
-        const finalToken = token || headerToken;
+            return NextResponse.json(response.data);
+        } catch (error: any) {
+            console.error('Error fetching vulnerabilities:', error);
 
-        if (!finalToken) {
-            return NextResponse.json(
-                { error: 'Unauthorized - No valid token found' },
-                { status: 401 }
-            );
+            // Return proper error response
+            const status = error.response?.status || 500;
+            const message = error.response?.data?.detail || 'Failed to fetch vulnerabilities';
+
+            return NextResponse.json({ error: message }, { status });
         }
+    },
+    ['pentester', 'client', 'admin', 'super_admin'] // All authenticated users can view vulnerabilities
+);
 
-        // Get user role from token for permission handling
-        const userRole = getUserRoleFromToken(finalToken);
-
-        // Generate appropriate headers with permission handling
-        const headers = getAuthHeaders(finalToken, userRole);
-
-        // Forward request to backend
-        const backendURL = getBackendURL();
-        console.log('Fetching vulnerabilities from:', `${backendURL}/api/vulnerabilities`);
-
-        const response = await axios.get(`${backendURL}/api/vulnerabilities`, { headers });
-
-        return NextResponse.json(response.data);
-    } catch (error: any) {
-        console.error('Error fetching vulnerabilities:', error);
-
-        // Return proper error response
-        const status = error.response?.status || 500;
-        const message = error.response?.data?.detail || 'Failed to fetch vulnerabilities';
-
-        return NextResponse.json(
-            { error: message },
-            { status: status }
-        );
-    }
-}
-
-export async function POST(request: Request) {
+export async function POST(req: NextRequest) {
     try {
-        // Get token from cookies
-        const cookies = request.headers.get('cookie') || '';
-        const tokenMatch = cookies.match(/token=([^;]+)/);
-        const token = tokenMatch ? decodeURIComponent(tokenMatch[1]) : null;
-
-        // Also check Authorization header as fallback
-        const authHeader = request.headers.get('Authorization');
-        const headerToken = authHeader?.split(' ')[1];
-
-        // Use token from cookie or header
-        let finalToken = token || headerToken;
+        // Extract token from request
+        let token = extractTokenFromRequest(req);
 
         // If no token is available, try to login with service account
-        if (!finalToken) {
+        if (!token) {
             try {
                 // Use environment variables for service account credentials
                 const serviceEmail = process.env.SERVICE_ACCOUNT_EMAIL || 'admin@example.com';
@@ -76,30 +43,21 @@ export async function POST(request: Request) {
 
                 // Login to get a valid token
                 const authResponse = await loginToBackend(serviceEmail, servicePassword);
-                finalToken = authResponse.access_token;
+                token = authResponse.access_token;
 
                 console.log('Successfully obtained service token for vulnerability creation');
             } catch (loginError) {
                 console.error('Failed to obtain service token:', loginError);
-                return NextResponse.json(
-                    { error: 'Authentication failed' },
-                    { status: 401 }
-                );
+                return unauthorizedResponse('Authentication failed');
             }
         }
 
-        if (!finalToken) {
-            return NextResponse.json(
-                { error: 'Unauthorized - No valid token found' },
-                { status: 401 }
-            );
+        if (!token) {
+            return unauthorizedResponse('No valid token found');
         }
 
-        // Get user role from token
-        const userRole = getUserRoleFromToken(finalToken);
-
         // Parse the request body
-        const data = await request.json();
+        const data = await req.json();
         console.log('Creating vulnerability with data:', data);
 
         if (!data.project_id) {
@@ -112,46 +70,53 @@ export async function POST(request: Request) {
         // Extract the project_id from the request body
         const projectId = data.project_id;
 
+        // Extract role from token - manually decode token to check if SUPER_ADMIN
+        // This is a simplified approach for demonstration
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => {
+            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+        const payload = JSON.parse(jsonPayload);
+        const userRole = payload.role;
+
+        console.log(`User role from token: ${userRole}`);
+
         // Forward request to backend using the specific endpoint for creating vulnerabilities
         const backendURL = getBackendURL();
         console.log(`Creating vulnerability for project ${projectId}`);
 
         try {
-            // Generate appropriate headers with permission handling
-            const headers = getAuthHeaders(finalToken, userRole);
+            // Generate headers with explicit override for SUPER_ADMIN
+            const headers: Record<string, string> = {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            };
+
+            // Explicitly add X-Override-Role header for SUPER_ADMIN users
+            if (userRole === 'SUPER_ADMIN') {
+                console.log('Adding X-Override-Role header for SUPER_ADMIN user');
+                headers['X-Override-Role'] = 'true';
+            }
+
+            console.log('Request headers:', headers);
 
             // Try the first endpoint format
-            const response = await axios.post(`${backendURL}/api/vulnerabilities/${projectId}`, data, { headers });
+            const response = await axios.post(
+                `${backendURL}/api/vulnerabilities/${projectId}`,
+                data,
+                { headers }
+            );
 
             return NextResponse.json(response.data, { status: 201 });
         } catch (innerError: any) {
             console.error('Error creating vulnerability:', innerError);
 
-            // If in development and we get an error, return mock data
-            if (process.env.NODE_ENV === 'development') {
-                console.log('Returning mock vulnerability data for development');
-                return NextResponse.json({
-                    id: '12345',
-                    title: data.title || 'New Vulnerability',
-                    description_md: data.description_md || 'Description goes here',
-                    poc_type: data.poc_type || 'text',
-                    poc_code: data.poc_code || '',
-                    severity: data.severity || 'medium',
-                    status: data.status || 'open',
-                    project_id: projectId,
-                    created_at: new Date().toISOString(),
-                    updated_at: new Date().toISOString()
-                }, { status: 201 });
-            }
-
             // Return proper error response
             const status = innerError.response?.status || 500;
             const message = innerError.response?.data?.detail || 'Failed to create vulnerability';
 
-            return NextResponse.json(
-                { error: message },
-                { status: status }
-            );
+            return NextResponse.json({ error: message }, { status });
         }
     } catch (error: any) {
         console.error('Error in vulnerability creation:', error);

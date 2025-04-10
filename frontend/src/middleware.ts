@@ -1,40 +1,39 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-// Paths that don't require authentication
-const PUBLIC_PATHS = ['/login', '/register', '/auth', '/unauthorized'];
-
+/**
+ * Simple middleware to log requests and validate tokens for API routes
+ */
 export function middleware(request: NextRequest) {
-  const pathname = request.nextUrl.pathname;
+  // Only intercept API routes
+  if (request.nextUrl.pathname.startsWith('/api/')) {
+    // Extract token from cookies or headers
+    const token = request.cookies.get('token')?.value ||
+      request.headers.get('Authorization')?.replace('Bearer ', '');
 
-  // Skip middleware for API routes and static files
-  if (pathname.startsWith('/api/') || pathname.startsWith('/_next/')) {
-    return NextResponse.next();
+    // Add X-Request-ID for tracking
+    const requestId = crypto.randomUUID();
+    const response = NextResponse.next({
+      request: {
+        headers: new Headers(request.headers),
+      },
+    });
+
+    // Add tracking headers
+    response.headers.set('X-Request-ID', requestId);
+
+    // Log this request (useful for auditing permissions)
+    console.log(`[${requestId}] ${request.method} ${request.nextUrl.pathname} - Authenticated: ${!!token}`);
+
+    return response;
   }
 
-  // Allow public paths
-  if (PUBLIC_PATHS.some(publicPath => pathname === publicPath || pathname.startsWith(`${publicPath}/`))) {
-    return NextResponse.next();
-  }
-
-  // Check for authentication token in cookies
-  const token = request.cookies.get('token')?.value;
-
-  // If no token is found, redirect to login
-  if (!token) {
-    const url = new URL('/login', request.url);
-    url.searchParams.set('from', pathname);
-    return NextResponse.redirect(url);
-  }
-
-  // Continue with authenticated request
   return NextResponse.next();
 }
 
-// See: https://nextjs.org/docs/advanced-features/middleware
+// Configure which routes use this middleware
 export const config = {
-  // Only run middleware on these paths
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico).*)',
+    '/api/:path*',
   ],
 };

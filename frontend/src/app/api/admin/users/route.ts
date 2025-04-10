@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import axios from 'axios';
 import { getBackendURL } from '@/lib/api';
+import { serializeUserToBackend } from '@/lib/api/serializers';
+import { FEATURES } from '@/lib/constants';
 
 // Helper function to get token from request
 const getTokenFromRequest = (request: Request) => {
@@ -116,7 +118,25 @@ export async function POST(request: Request) {
         }
 
         // Parse request body
-        const body = await request.json();
+        const requestBody = await request.json();
+        console.log('Admin API - Original request body:', requestBody);
+
+        // Ensure role is uppercase for backend compatibility
+        const userRole = requestBody.role || 'USER';
+        const role = userRole.toUpperCase();
+
+        // Prepare data for backend with proper serialization
+        const userData = {
+            ...requestBody,
+            role: role // Ensure role is UPPERCASE for backend
+        };
+
+        // Properly serialize the user data for backend compatibility
+        const serializedData = serializeUserToBackend(userData);
+
+        if (FEATURES.DETAILED_ERRORS) {
+            console.log('Admin API - Serialized data for backend:', serializedData);
+        }
 
         // Construct backend URL
         const backendURL = getBackendURL();
@@ -124,8 +144,8 @@ export async function POST(request: Request) {
 
         console.log(`Admin API - Creating user via direct API call to: ${backendEndpoint}`);
 
-        // Make direct request to backend
-        const response = await axios.post(backendEndpoint, body, {
+        // Make direct request to backend with properly serialized data
+        const response = await axios.post(backendEndpoint, serializedData, {
             headers: {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json',
@@ -144,6 +164,11 @@ export async function POST(request: Request) {
         // Extract detailed error information
         const status = error.response?.status || 500;
         const errorData = error.response?.data;
+
+        // Show more detailed information for validation errors
+        if (status === 422 && FEATURES.DETAILED_ERRORS) {
+            console.error('Admin API - Validation error details:', errorData);
+        }
 
         console.error('Admin API - Error details:', {
             status,

@@ -29,12 +29,14 @@ export default function VulnerabilityDetailPage() {
   }>({});
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
-  const { data: vulnerability, isLoading } = useQuery({
+  const { data: vulnerability, isLoading, error: vulnerabilityError } = useQuery({
     queryKey: ['vulnerability', vulnerabilityId],
     queryFn: async () => {
-      const response = await axios.get(`/api/vulnerabilities/detail/${vulnerabilityId}`);
+      console.log(`Fetching vulnerability with ID: ${vulnerabilityId}`);
+      const response = await axios.get(`/api/vulnerabilities/${vulnerabilityId}`);
       return response.data;
     },
+    retry: 2, // Retry failed requests up to 2 times
   });
 
   const deleteVulnerabilityMutation = useMutation({
@@ -159,12 +161,17 @@ export default function VulnerabilityDetailPage() {
     );
   }
 
-  if (!vulnerability) {
+  if (!vulnerability || vulnerabilityError) {
     return (
       <DashboardLayout>
         <div className="container p-6 mx-auto">
           <div className="flex flex-col items-center justify-center py-10">
-            <p className="text-lg text-center mb-4">Vulnerability not found</p>
+            <p className="text-lg text-center mb-4">
+              {vulnerabilityError
+                ? `Error: ${(vulnerabilityError as any)?.response?.data?.error || 'Failed to load vulnerability'}`
+                : 'Vulnerability not found'
+              }
+            </p>
             <Button asChild>
               <a href="/vulnerabilities">Back to Vulnerabilities</a>
             </Button>

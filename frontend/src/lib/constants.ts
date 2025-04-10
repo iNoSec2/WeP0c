@@ -14,6 +14,6 @@ export const FEATURES = {
     // Enable detailed error logging
     DETAILED_ERRORS: IS_DEVELOPMENT,
 
-    // Enable mock data for development
-    USE_MOCK_DATA: IS_DEVELOPMENT,
+    // Mock data is disabled across all environments
+    USE_MOCK_DATA: false,
 }; 

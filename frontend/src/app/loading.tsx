@@ -1,6 +1,6 @@
 'use client';
 
-import LoadingScreen from '@/components/ui/loading/LoadingScreen';
+import LoadingScreen from '@/components/ui/LoadingScreen';
 
 export default function RootLoading() {
   return <LoadingScreen />;

@@ -48,27 +48,7 @@ export async function GET(request: Request) {
         if (response.success) {
             return NextResponse.json(response.data);
         } else {
-            // For development, provide mock data when real API fails
-            if (process.env.NODE_ENV === 'development') {
-                console.log('Returning mock client data for development');
-                return NextResponse.json([
-                    {
-                        id: '55e6af3a-95b3-4225-83e6-8a2c7fe115e6',
-                        username: 'client1',
-                        email: 'client1@example.com',
-                        full_name: 'Test Client',
-                        company: 'Client Company 1'
-                    },
-                    {
-                        id: 'a2c3e4b5-6d7e-8f9a-0b1c-2d3e4f5a6b7c',
-                        username: 'client2',
-                        email: 'client2@example.com',
-                        full_name: 'Another Client',
-                        company: 'Client Company 2'
-                    }
-                ]);
-            }
-
+            // No mock data - return the actual error from the API
             return NextResponse.json(
                 {
                     error: response.error?.message || 'Failed to fetch clients',
