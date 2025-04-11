@@ -17,7 +17,7 @@ from app.utils.poc_runner import poc_runner
 from app.utils.file_handler import file_handler
 import markdown2
 
-router = APIRouter(tags=["vulnerabilities"])
+router = APIRouter(prefix="/vulnerabilities", tags=["vulnerabilities"])
 
 
 @router.get("/recent", response_model=List[Vulnerability])
@@ -49,9 +49,17 @@ async def get_recent_vulnerabilities(
 @router.get("/all", response_model=List[Vulnerability])
 async def get_all_vulnerabilities(
     db: Session = Depends(get_db),
-    current_user: User = Depends(Permissions.ANY_USER),
+    current_user: User = Depends(Permissions.ADMIN_ONLY),
+    admin_override: Optional[str] = Header(None, alias="X-Admin-Override"),
 ):
-    """Get all vulnerabilities in the system."""
+    """Get all vulnerabilities in the system (super admin only)."""
+    # Log the request for debugging
+    print(
+        f"Getting all vulnerabilities by user {current_user.username} with role {current_user.role}"
+    )
+    if admin_override:
+        print(f"Admin override header present: {admin_override}")
+
     vulnerabilities = crud_vulnerability.get_all(db)
 
     # Process markdown to HTML for each vulnerability
@@ -68,10 +76,21 @@ async def get_all_vulnerabilities(
                 ),
             )
 
+        # Add HTML description if not present
+        if not hasattr(vuln, "description_html"):
+            setattr(
+                vuln,
+                "description_html",
+                markdown2.markdown(
+                    vuln.description,
+                    extras=["fenced-code-blocks", "tables", "break-on-newline"],
+                ),
+            )
+
     return vulnerabilities
 
 
-@router.post("/vulnerabilities/{project_id}", response_model=Vulnerability)
+@router.post("/create/{project_id}", response_model=Vulnerability)
 async def create_vulnerability(
     project_id: UUID,
     vulnerability: VulnerabilityCreate,
@@ -96,6 +115,11 @@ async def create_vulnerability(
 
     # Create the vulnerability
     try:
+        # Create a dict from the vulnerability model and remove project_id if it exists
+        vuln_data = vulnerability.dict()
+        if "project_id" in vuln_data:
+            del vuln_data["project_id"]
+
         result = crud_vulnerability.create_vulnerability(
             db=db,
             vulnerability=vulnerability,
@@ -103,13 +127,23 @@ async def create_vulnerability(
             discovered_by=current_user.id,
         )
         print(f"Vulnerability created successfully: {result.id}")
+
+        # Convert the description to HTML and add it as a response attribute
+        # This doesn't modify the database model, just the response
+        description_html = markdown2.markdown(
+            result.description,
+            extras=["fenced-code-blocks", "tables", "break-on-newline"],
+        )
+        # Use setattr to dynamically add the attribute to the response object
+        setattr(result, "description_html", description_html)
+
         return result
     except Exception as e:
         print(f"Error creating vulnerability: {str(e)}")
         raise
 
 
-@router.get("/vulnerabilities/{project_id}", response_model=List[Vulnerability])
+@router.get("/project/{project_id}", response_model=List[Vulnerability])
 async def get_project_vulnerabilities(
     project_id: UUID,
     db: Session = Depends(get_db),
@@ -133,7 +167,7 @@ async def get_project_vulnerabilities(
     return vulnerabilities
 
 
-@router.get("/vulnerabilities/{vulnerability_id}", response_model=Vulnerability)
+@router.get("/{vulnerability_id}", response_model=Vulnerability)
 async def get_vulnerability(
     vulnerability_id: UUID,
     db: Session = Depends(get_db),
@@ -144,6 +178,30 @@ async def get_vulnerability(
     )
     if not vulnerability:
         raise HTTPException(status_code=404, detail="Vulnerability not found")
+
+    # Add HTML description if not present
+    if not hasattr(vulnerability, "description_html"):
+        setattr(
+            vulnerability,
+            "description_html",
+            markdown2.markdown(
+                vulnerability.description,
+                extras=["fenced-code-blocks", "tables", "break-on-newline"],
+            ),
+        )
+
+    # Add HTML for PoC code if present
+    if vulnerability.poc_code and not hasattr(vulnerability, "poc_html"):
+        setattr(
+            vulnerability,
+            "poc_html",
+            markdown2.markdown(
+                f"```{vulnerability.poc_type}\n{vulnerability.poc_code}\n```",
+                extras=["fenced-code-blocks", "tables", "break-on-newline"],
+            ),
+        )
+
+    # Return the vulnerability with HTML content
     return vulnerability
 
 
@@ -226,7 +284,47 @@ async def update_vulnerability(
         )
 
 
-@router.post("/vulnerabilities/execute/{vulnerability_id}")
+@router.delete("/vulnerabilities/{vulnerability_id}")
+async def delete_vulnerability(
+    vulnerability_id: UUID,
+    db: Session = Depends(get_db),
+    current_user=Depends(Permissions.PENTESTER_WITH_OVERRIDE),
+    admin_override: Optional[str] = Header(None, alias="X-Admin-Override"),
+):
+    """Delete a vulnerability"""
+    # Log the request details for debugging
+    print(
+        f"Deleting vulnerability {vulnerability_id} by user {current_user.username} with role {current_user.role}"
+    )
+    if admin_override:
+        print(f"Admin override header present: {admin_override}")
+
+    # Check if vulnerability exists
+    existing_vulnerability = crud_vulnerability.get_vulnerability(
+        db=db, vulnerability_id=vulnerability_id
+    )
+    if not existing_vulnerability:
+        raise HTTPException(status_code=404, detail="Vulnerability not found")
+
+    # Delete the vulnerability
+    try:
+        success = crud_vulnerability.delete_vulnerability(
+            db=db, vulnerability_id=vulnerability_id
+        )
+        if success:
+            return {"message": "Vulnerability deleted successfully"}
+        else:
+            raise HTTPException(
+                status_code=500, detail="Failed to delete vulnerability"
+            )
+    except Exception as e:
+        print(f"Error deleting vulnerability: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Error deleting vulnerability: {str(e)}"
+        )
+
+
+@router.post("/execute/{vulnerability_id}")
 async def execute_vulnerability_poc(
     vulnerability_id: UUID,
     db: Session = Depends(get_db),

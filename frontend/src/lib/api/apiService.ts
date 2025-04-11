@@ -65,11 +65,14 @@ class ApiService {
                 if (typeof window !== 'undefined') {
                     const token = getToken();
                     if (token) {
-                        config.headers = config.headers || {};
+                        if (!config.headers) {
+                            config.headers = new AxiosHeaders();
+                        }
                         if (config.headers instanceof AxiosHeaders) {
                             config.headers.set('Authorization', `Bearer ${token}`);
                         } else {
-                            config.headers['Authorization'] = `Bearer ${token}`;
+                            // Fallback for non-AxiosHeaders objects
+                            (config.headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
                         }
                     }
                 }
@@ -306,4 +309,4 @@ const apiService = new ApiService({
     }
 });
 
-export default apiService; 
+export default apiService;

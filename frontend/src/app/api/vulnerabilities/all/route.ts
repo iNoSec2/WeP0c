@@ -47,9 +47,10 @@ export async function GET(request: Request) {
 
         console.log('Fetching all vulnerabilities from backend');
 
-        // Use the new /api/all endpoint
+        // Use the correct endpoint for getting all vulnerabilities
         const backendURL = getBackendURL();
-        const vulnResponse = await axios.get(`${backendURL}/api/all`, { headers });
+        console.log(`Fetching vulnerabilities from: ${backendURL}/api/vulnerabilities/all`);
+        const vulnResponse = await axios.get(`${backendURL}/api/vulnerabilities/all`, { headers });
         const allVulnerabilities = vulnResponse.data;
 
         // Get all projects to add project names

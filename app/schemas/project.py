@@ -19,7 +19,8 @@ class ProjectBase(BaseModel):
 
 class ProjectCreate(ProjectBase):
     client_id: UUID
-    pentester_id: UUID  # Make pentester required
+    pentester_id: Optional[UUID] = None  # Single pentester (for backward compatibility)
+    pentester_ids: Optional[List[UUID]] = None  # Multiple pentesters
 
 
 class ProjectUpdate(BaseModel):

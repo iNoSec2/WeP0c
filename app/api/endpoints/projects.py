@@ -24,22 +24,40 @@ async def create_project(
     db: Session = Depends(get_db),
     current_user=Depends(require_role([Role.PENTESTER, Role.SUPER_ADMIN])),
 ):
-    """Create a new project with the specified pentester as lead"""
-    if not project.pentester_id:
+    """Create a new project with multiple pentesters"""
+    # Handle both single pentester_id and multiple pentester_ids
+    pentester_ids = []
+
+    # Add single pentester if provided
+    if project.pentester_id:
+        pentester_ids.append(project.pentester_id)
+
+    # Add multiple pentesters if provided
+    if project.pentester_ids:
+        pentester_ids.extend(project.pentester_ids)
+
+    # Remove duplicates while preserving order
+    pentester_ids = list(dict.fromkeys(pentester_ids))
+
+    # Ensure at least one pentester is assigned
+    if not pentester_ids:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Pentester ID is required"
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="At least one pentester must be assigned to the project",
         )
 
-    # Verify pentester exists and is active
-    pentester = crud_user.get_user(db, project.pentester_id)
-    if not pentester or pentester.role != Role.PENTESTER:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid pentester ID"
-        )
+    # Verify all pentesters exist and are active
+    for pentester_id in pentester_ids:
+        pentester = crud_user.get_user(db, pentester_id)
+        if not pentester or pentester.role != Role.PENTESTER:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid pentester ID: {pentester_id}",
+            )
 
-    # The crud_project.create_project expects pentester_ids as a list
+    # Create the project with multiple pentesters
     return crud_project.create_project(
-        db=db, project=project, pentester_ids=[project.pentester_id]
+        db=db, project=project, pentester_ids=pentester_ids
     )
 
 

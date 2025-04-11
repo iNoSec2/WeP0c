@@ -20,6 +20,12 @@ export const userRoutes = {
     adminUsers: '/api/admin/users',
     adminUser: (id: string) => `/api/admin/users/${id}`,
 
+    // Specialities
+    specialities: '/api/users/specialities',
+    userSpecialities: (userId: string) => `/api/users/${userId}/specialities`,
+    addSpeciality: (userId: string, speciality: string) => `/api/users/${userId}/specialities/${speciality}`,
+    removeSpeciality: (userId: string, speciality: string) => `/api/users/${userId}/specialities/${speciality}`,
+
     // Search and filter
     search: (query: string) => `/api/users/search?q=${encodeURIComponent(query)}`,
     filter: (role?: string) => role && role.toLowerCase() !== 'all' ?
@@ -50,7 +56,7 @@ export const authRoutes = {
 /**
  * Normalize IDs across the application
  * Handles both string and numeric IDs
- * 
+ *
  * @param id The ID to normalize
  * @returns The normalized ID as a string
  */
@@ -61,11 +67,11 @@ export function normalizeId(id: string | number | undefined | null): string {
 
 /**
  * Normalize role values to ensure consistency
- * 
+ *
  * @param role The role to normalize
  * @returns The normalized role, lowercase
  */
 export function normalizeRole(role: string | undefined | null): string {
     if (!role) return '';
     return role.toLowerCase();
-} 
+}

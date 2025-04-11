@@ -22,14 +22,8 @@ export const getBackendURL = () => {
 
     // For server-side calls (SSR) in Next.js
     if (typeof window === 'undefined') {
-        // Check if we're in a Docker/container environment
-        if (process.env.CONTAINER_ENV === 'true') {
-            // Use the service name defined in docker-compose
-            return "http://api:8001";
-        } else {
-            // When running on host machine (not in container)
-            return "http://127.0.0.1:8001"; // Explicit IPv4 address
-        }
+        // Always use the API service name in Docker environment for server-side calls
+        return "http://api:8001";
     }
 
     // For client-side (browser) calls
@@ -48,4 +42,4 @@ export const getToken = () => {
         token = localStorage.getItem("access_token");
     }
     return token;
-}; 
+};

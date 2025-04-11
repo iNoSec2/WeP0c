@@ -44,7 +44,7 @@ export function useApi() {
 
         // Get token from localStorage
         const token = localStorage.getItem('token') || localStorage.getItem('access_token');
-        
+
         // Add authorization header if token exists
         const headers = token
           ? { ...config.headers, Authorization: `Bearer ${token}` }
@@ -65,10 +65,11 @@ export function useApi() {
         return response.data;
       } catch (err) {
         const axiosError = err as AxiosError;
-        const errorMsg = 
-          axiosError.response?.data?.message || 
-          axiosError.response?.data?.detail || 
-          axiosError.message || 
+        const errorData = axiosError.response?.data as any;
+        const errorMsg =
+          errorData?.message ||
+          errorData?.detail ||
+          axiosError.message ||
           errorMessage;
 
         setError(errorMsg);

@@ -31,7 +31,7 @@ import {
     TableHeader,
     TableRow
 } from "@/components/ui/table";
-import { PlusCircle, Search, Edit, Trash2, Play } from "lucide-react";
+import { PlusCircle, Search, Edit, Trash2, Play, Eye } from "lucide-react";
 import Link from "next/link";
 import { formatDate } from "@/lib/utils";
 import {
@@ -97,8 +97,12 @@ export default function VulnerabilitiesPage() {
         queryKey: ["vulnerabilities"],
         queryFn: async () => {
             try {
-                // Try to get all vulnerabilities first
-                const response = await axios.get("/api/vulnerabilities/all");
+                // Try to get all vulnerabilities first (super admin only)
+                const response = await axios.get("/api/vulnerabilities/all", {
+                    headers: {
+                        'X-Admin-Override': 'true'
+                    }
+                });
                 console.log('Fetched all vulnerabilities:', response.data.length);
                 return response.data;
             } catch (error) {
@@ -146,10 +150,11 @@ export default function VulnerabilitiesPage() {
                 headers['X-Admin-Override'] = 'true';
             }
 
-            const response = await axios.post("/api/vulnerabilities", data, { headers });
+            // Use the project_id in the URL
+            const response = await axios.post(`/api/vulnerabilities/${data.project_id}`, data, { headers });
             return response.data;
         },
-        onSuccess: () => {
+        onSuccess: (data) => {
             queryClient.invalidateQueries({ queryKey: ["vulnerabilities"] });
             setIsCreateDialogOpen(false);
             setFormData({
@@ -166,6 +171,9 @@ export default function VulnerabilitiesPage() {
                 title: "Vulnerability created",
                 description: "The vulnerability has been successfully created.",
             });
+
+            // Navigate to the newly created vulnerability
+            router.push(`/vulnerabilities/${data.id}`);
         },
         onError: (error: any) => {
             toast({
@@ -468,7 +476,15 @@ export default function VulnerabilitiesPage() {
                                     <TableBody>
                                         {filteredVulnerabilities.map((vulnerability) => (
                                             <TableRow key={vulnerability.id}>
-                                                <TableCell className="font-medium">{vulnerability.title}</TableCell>
+                                                <TableCell className="font-medium">
+                                                    <Button
+                                                        variant="link"
+                                                        className="p-0 h-auto font-medium text-left justify-start"
+                                                        onClick={() => router.push(`/vulnerabilities/${vulnerability.id}`)}
+                                                    >
+                                                        {vulnerability.title}
+                                                    </Button>
+                                                </TableCell>
                                                 <TableCell>{vulnerability.project_name}</TableCell>
                                                 <TableCell>
                                                     <Badge className={getSeverityColor(vulnerability.severity)}>
@@ -483,6 +499,14 @@ export default function VulnerabilitiesPage() {
                                                 <TableCell>{formatDate(vulnerability.created_at)}</TableCell>
                                                 <TableCell className="text-right">
                                                     <div className="flex justify-end space-x-2">
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            onClick={() => router.push(`/vulnerabilities/${vulnerability.id}`)}
+                                                            title="View Details"
+                                                        >
+                                                            <Eye className="h-4 w-4" />
+                                                        </Button>
                                                         {vulnerability.poc_code && (
                                                             <Button
                                                                 variant="ghost"

@@ -5,17 +5,29 @@ import { useParams, useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import DashboardLayout from '@/components/DashboardLayout';
-import { MarkdownDisplay } from '@/components/MarkdownEditor';
+import CodeBlock from '@/components/CodeBlock';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { formatDate } from '@/lib/utils';
 import { useToast } from '@/components/ui/use-toast';
-import { Play, ArrowLeft, Edit, Trash2, CheckCircle, XCircle, AlertTriangle, AlertCircle, FileText, Code } from 'lucide-react';
+import { Play, ArrowLeft, Edit, Trash2, CheckCircle, XCircle, AlertTriangle, AlertCircle, FileText, Code, Info } from 'lucide-react';
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import ReactMarkdown from 'react-markdown';
+import rehypeRaw from 'rehype-raw';
+import rehypeSanitize from 'rehype-sanitize';
+import remarkGfm from 'remark-gfm';
+
+// Using the fixed version that uses PocDisplay component
+import FixedVulnerabilityDetailPage from './fixed-page';
 
 export default function VulnerabilityDetailPage() {
+  return <FixedVulnerabilityDetailPage />;
+}
+
+// Original implementation - keeping for reference
+function OriginalVulnerabilityDetailPage() {
   const params = useParams();
   const router = useRouter();
   const { toast } = useToast();
@@ -196,7 +208,7 @@ export default function VulnerabilityDetailPage() {
               <p className="mb-4">
                 {vulnerabilityError
                   ? `Error: ${typeof vulnerabilityError === 'string' ? vulnerabilityError :
-                      ((vulnerabilityError as any)?.response?.data?.error || 'Failed to load vulnerability')}`
+                    ((vulnerabilityError as any)?.response?.data?.error || 'Failed to load vulnerability')}`
                   : 'The requested vulnerability could not be found.'
                 }
               </p>
@@ -257,25 +269,37 @@ export default function VulnerabilityDetailPage() {
             </CardHeader>
             <CardContent>
               <Tabs defaultValue="description" className="w-full">
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="description">Description</TabsTrigger>
-                  <TabsTrigger value="poc">Proof of Concept</TabsTrigger>
+                <TabsList className="grid w-full grid-cols-3">
+                  <TabsTrigger value="description" className="flex items-center">
+                    <FileText className="w-4 h-4 mr-2" />
+                    Description
+                  </TabsTrigger>
+                  <TabsTrigger value="poc" className="flex items-center">
+                    <Code className="w-4 h-4 mr-2" />
+                    Proof of Concept
+                  </TabsTrigger>
+                  <TabsTrigger value="details" className="flex items-center">
+                    <Info className="w-4 h-4 mr-2" />
+                    Details
+                  </TabsTrigger>
                 </TabsList>
                 <TabsContent value="description" className="mt-4">
-                  <div className="prose prose-sm max-w-none dark:prose-invert">
-                    {vulnerability.description_html ? (
-                      <div dangerouslySetInnerHTML={{ __html: vulnerability.description_html }} />
-                    ) : (
-                      <MarkdownDisplay content={vulnerability.description} />
-                    )}
+                  <div className="prose prose-sm max-w-none dark:prose-invert rounded-lg border border-input bg-background p-4">
+                    <ReactMarkdown
+                      rehypePlugins={[rehypeRaw, rehypeSanitize]}
+                      remarkPlugins={[remarkGfm]}
+                    >
+                      {vulnerability.description || ''}
+                    </ReactMarkdown>
                   </div>
                 </TabsContent>
                 <TabsContent value="poc" className="mt-4">
                   {vulnerability.poc_code ? (
                     <div className="space-y-4">
                       <div className="flex justify-between items-center">
-                        <div>
-                          <h3 className="text-lg font-medium">PoC Code ({vulnerability.poc_type})</h3>
+                        <div className="flex items-center">
+                          <Badge variant="outline" className="mr-2">{vulnerability.poc_type}</Badge>
+                          <h3 className="text-lg font-medium">Proof of Concept</h3>
                         </div>
                         <Button
                           onClick={handleRunPoc}
@@ -286,63 +310,137 @@ export default function VulnerabilityDetailPage() {
                           {isExecuting ? 'Running...' : 'Run PoC'}
                         </Button>
                       </div>
-                      <div className="bg-gray-100 dark:bg-gray-800 p-4 rounded-md overflow-auto">
-                        <pre className="text-sm font-mono whitespace-pre-wrap">
-                          {vulnerability.poc_code}
-                        </pre>
-                      </div>
+                      <div className="rounded-lg border border-input bg-background overflow-auto">
+                        <CodeBlock
+                          code={vulnerability.poc_code}
+                          language={vulnerability.poc_type?.toLowerCase() || 'text'}
+                          showLineNumbers={true}
+                        />
 
-                      {executionResult.output && (
-                        <div className="space-y-2">
-                          <h4 className="font-medium">Execution Result</h4>
-                          <div className={`p-4 rounded-md overflow-auto ${executionResult.success
-                            ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-900'
-                            : 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900'
-                            }`}>
-                            <div className="flex justify-between mb-2">
-                              <span className="font-medium flex items-center">
-                                {executionResult.success
-                                  ? <CheckCircle className="h-4 w-4 mr-2 text-green-500" />
-                                  : <XCircle className="h-4 w-4 mr-2 text-red-500" />}
-                                {executionResult.success ? 'Success' : 'Failed'}
-                              </span>
-                              <span className="text-sm">
-                                Exit code: {executionResult.exit_code}
-                              </span>
-                            </div>
+                        {executionResult.output && (
+                          <div className="space-y-2">
+                            <h4 className="font-medium">Execution Result</h4>
+                            <div className={`p-4 rounded-md overflow-auto ${executionResult.success
+                              ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-900'
+                              : 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900'
+                              }`}>
+                              <div className="flex justify-between mb-2">
+                                <span className="font-medium flex items-center">
+                                  {executionResult.success
+                                    ? <CheckCircle className="h-4 w-4 mr-2 text-green-500" />
+                                    : <XCircle className="h-4 w-4 mr-2 text-red-500" />}
+                                  {executionResult.success ? 'Success' : 'Failed'}
+                                </span>
+                                <span className="text-sm">
+                                  Exit code: {executionResult.exit_code}
+                                </span>
+                              </div>
 
-                            {/* Error message for common issues */}
-                            {!executionResult.success && executionResult.output && executionResult.output.includes("No such file or directory") && (
-                              <div className="mb-3 p-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded text-sm">
-                                <div className="flex items-start">
-                                  <AlertTriangle className="h-4 w-4 mr-2 text-amber-500 mt-0.5" />
-                                  <div>
-                                    <p className="font-medium">File not found error detected</p>
-                                    <p>This error typically occurs when the PoC file cannot be accessed. Try the following:</p>
-                                    <ul className="list-disc ml-5 mt-1">
-                                      <li>Check that your code references files correctly</li>
-                                      <li>If using external files, upload them as a ZIP attachment</li>
-                                      <li>Make sure file paths are relative to the PoC script</li>
-                                    </ul>
+                              {/* Error message for common issues */}
+                              {!executionResult.success && executionResult.output && executionResult.output.includes("No such file or directory") && (
+                                <div className="mb-3 p-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded text-sm">
+                                  <div className="flex items-start">
+                                    <AlertTriangle className="h-4 w-4 mr-2 text-amber-500 mt-0.5" />
+                                    <div>
+                                      <p className="font-medium">File not found error detected</p>
+                                      <p>This error typically occurs when the PoC file cannot be accessed. Try the following:</p>
+                                      <ul className="list-disc ml-5 mt-1">
+                                        <li>Check that your code references files correctly</li>
+                                        <li>If using external files, upload them as a ZIP attachment</li>
+                                        <li>Make sure file paths are relative to the PoC script</li>
+                                      </ul>
+                                    </div>
                                   </div>
                                 </div>
-                              </div>
-                            )}
+                              )}
 
-                            <div className="overflow-auto max-h-96 border border-gray-200 dark:border-gray-700 rounded-md bg-gray-50 dark:bg-gray-900">
-                              <pre className="text-sm font-mono whitespace-pre-wrap p-3">
-                                {executionResult.output || 'No output received from execution'}
-                              </pre>
+                              <div className="overflow-auto max-h-96">
+                                <CodeBlock
+                                  code={executionResult.output || 'No output received from execution'}
+                                  language="shell"
+                                  showLineNumbers={false}
+                                  className="mt-2"
+                                />
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </div>
                   ) : (
                     <div className="py-8 text-center">
                       <p className="text-muted-foreground">No PoC code available for this vulnerability.</p>
                     </div>
                   )}
+                </TabsContent>
+                <TabsContent value="details" className="mt-4">
+                  <div className="space-y-4 rounded-lg border border-input bg-background p-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <h3 className="text-lg font-medium mb-2">Vulnerability Information</h3>
+                        <div className="space-y-2">
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Severity:</span>
+                            <Badge className={getSeverityColor(vulnerability.severity)}>
+                              {vulnerability.severity}
+                            </Badge>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Status:</span>
+                            <Badge className={getStatusColor(vulnerability.status)}>
+                              {vulnerability.status}
+                            </Badge>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Created:</span>
+                            <span>{formatDate(vulnerability.created_at)}</span>
+                          </div>
+                          {vulnerability.updated_at && (
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Last Updated:</span>
+                              <span>{formatDate(vulnerability.updated_at)}</span>
+                            </div>
+                          )}
+                          {vulnerability.fixed_at && (
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Fixed:</span>
+                              <span>{formatDate(vulnerability.fixed_at)}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div>
+                        <h3 className="text-lg font-medium mb-2">Technical Details</h3>
+                        <div className="space-y-2">
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">PoC Type:</span>
+                            <span>{vulnerability.poc_type || 'N/A'}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Has PoC Code:</span>
+                            <span>{vulnerability.poc_code ? 'Yes' : 'No'}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Has PoC File:</span>
+                            <span>{vulnerability.poc_zip_path && vulnerability.poc_zip_path !== 'N/A' ? 'Yes' : 'No'}</span>
+                          </div>
+                          {vulnerability.cvss_score && (
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">CVSS Score:</span>
+                              <span>{vulnerability.cvss_score}</span>
+                            </div>
+                          )}
+                          {vulnerability.cvss_vector && (
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">CVSS Vector:</span>
+                              <span className="font-mono text-xs">{vulnerability.cvss_vector}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </TabsContent>
               </Tabs>
             </CardContent>

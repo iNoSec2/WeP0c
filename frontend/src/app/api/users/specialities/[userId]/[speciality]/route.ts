@@ -42,7 +42,8 @@ export async function POST(
 
         // Prepare backend URL
         const backendURL = getBackendURL();
-        const endpoint = `${backendURL}${userRoutes.addSpeciality(userId, speciality)}`;
+        // Construct the endpoint URL directly instead of using userRoutes.addSpeciality
+        const endpoint = `${backendURL}/api/users/${userId}/specialities/${speciality}`;
 
         console.log(`Making POST request to backend: ${endpoint}`);
 
@@ -113,7 +114,8 @@ export async function DELETE(
 
         // Prepare backend URL
         const backendURL = getBackendURL();
-        const endpoint = `${backendURL}${userRoutes.removeSpeciality(userId, speciality)}`;
+        // Construct the endpoint URL directly
+        const endpoint = `${backendURL}/api/users/${userId}/specialities/${speciality}`;
 
         console.log(`Making DELETE request to backend: ${endpoint}`);
 
@@ -229,4 +231,4 @@ export async function GET(
             { status }
         );
     }
-} 
+}

@@ -120,9 +120,9 @@ export async function POST(req: NextRequest) {
                 }
             }
 
-            // Try the first endpoint format
+            // Use the correct endpoint format
             const response = await axios.post(
-                `${backendURL}/api/vulnerabilities/${projectId}`,
+                `${backendURL}/api/vulnerabilities/create/${projectId}`,
                 data,
                 { headers }
             );

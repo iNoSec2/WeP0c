@@ -26,7 +26,7 @@ export const vulnerabilitiesAPI = {
 
     getById: async (id: string) => {
         try {
-            const response = await axios.get(`/api/vulnerabilities/detail/${id}`);
+            const response = await axios.get(`/api/vulnerabilities/${id}`);
             return response.data;
         } catch (error) {
             console.error(`Error fetching vulnerability ${id}:`, error);
@@ -36,6 +36,8 @@ export const vulnerabilitiesAPI = {
 
     create: async (data: any) => {
         try {
+            console.log('Creating vulnerability with data:', data);
+            // Send the data to the API route
             const response = await axios.post('/api/vulnerabilities', data);
             return response.data;
         } catch (error) {
@@ -56,7 +58,9 @@ export const vulnerabilitiesAPI = {
 
     execute: async (id: string) => {
         try {
+            console.log(`Executing vulnerability with ID: ${id}`);
             const response = await axios.post(`/api/vulnerabilities/execute/${id}`);
+            console.log('Execution response:', response.data);
             return response.data;
         } catch (error) {
             console.error(`Error executing vulnerability ${id}:`, error);
@@ -65,4 +69,4 @@ export const vulnerabilitiesAPI = {
     }
 };
 
-export default vulnerabilitiesAPI; 
+export default vulnerabilitiesAPI;

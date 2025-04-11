@@ -36,6 +36,7 @@ services:
     environment:
       - NEXT_PUBLIC_API_URL=http://localhost:8001
       - NODE_ENV=development
+      - CONTAINER_ENV=true
       - FEATURES_DETAILED_ERRORS=${FEATURES_DETAILED_ERRORS:-true}
       - ENABLE_POC_UPLOAD=${ENABLE_POC_UPLOAD:-true}
       - ENABLE_POC_EXEC=${ENABLE_POC_EXEC:-false}

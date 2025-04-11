@@ -39,6 +39,7 @@ export default function ProfilePage() {
     handleSubmit: handleProfileSubmit,
     formState: { errors: profileErrors },
     reset: resetProfile,
+    watch: watchProfile,
   } = useForm<ProfileFormValues>();
 
   const {
@@ -273,7 +274,7 @@ export default function ProfilePage() {
                   <div className="flex justify-between items-center pt-4">
                     <div className="flex items-center gap-4">
                       <Avatar className="h-16 w-16">
-                        <AvatarImage src={watch?.("avatarUrl") || userData?.avatar_url} />
+                        <AvatarImage src={watchProfile?.("avatarUrl") || userData?.avatar_url} />
                         <AvatarFallback>
                           {userData?.full_name ? getInitials(userData.full_name) : "U"}
                         </AvatarFallback>

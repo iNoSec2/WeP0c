@@ -75,6 +75,77 @@ export async function GET(
     }
 }
 
+export async function DELETE(
+    request: NextRequest,
+    { params }: { params: { id: string } }
+) {
+    try {
+        // Get vulnerability ID from route params
+        const vulnerabilityId = params.id;
+        console.log(`Deleting vulnerability with ID: ${vulnerabilityId}`);
+
+        // Extract token from request
+        const token = extractTokenFromRequest(request);
+        if (!token) {
+            return NextResponse.json(
+                { error: 'Unauthorized - No valid token found' },
+                { status: 401 }
+            );
+        }
+
+        // Extract role from token
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => {
+            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+        const payload = JSON.parse(jsonPayload);
+        const userRole = payload.role;
+
+        // Generate headers
+        const headers: Record<string, string> = {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        };
+
+        // Add override headers for SUPER_ADMIN and ADMIN users
+        if (userRole === 'SUPER_ADMIN' || userRole === 'ADMIN') {
+            console.log(`Adding override headers for ${userRole} user`);
+            headers['X-Override-Role'] = 'true';
+            headers['X-Admin-Access'] = 'true';
+            headers['X-Admin-Override'] = 'true';
+
+            // Log the headers for debugging
+            console.log('Request headers:', headers);
+        }
+
+        // Forward request to backend
+        const backendURL = getBackendURL();
+
+        try {
+            console.log(`Deleting vulnerability at: ${backendURL}/api/vulnerabilities/${vulnerabilityId}`);
+            await axios.delete(
+                `${backendURL}/api/vulnerabilities/${vulnerabilityId}`,
+                { headers }
+            );
+            return NextResponse.json({ message: 'Vulnerability deleted successfully' });
+        } catch (error: any) {
+            console.error(`Error deleting vulnerability: ${vulnerabilityId}`, error);
+
+            return NextResponse.json(
+                { error: error.response?.data?.detail || 'Failed to delete vulnerability' },
+                { status: error.response?.status || 500 }
+            );
+        }
+    } catch (error) {
+        console.error('Unexpected error in vulnerability delete route:', error);
+        return NextResponse.json(
+            { error: 'An unexpected error occurred' },
+            { status: 500 }
+        );
+    }
+}
+
 export async function PUT(
     request: NextRequest,
     { params }: { params: { id: string } }

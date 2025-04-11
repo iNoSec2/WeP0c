@@ -52,17 +52,17 @@ async def get_users(
 ):
     """
     Get list of users with optional role filtering
-    
+
     - role: Filter users by role (case-insensitive). Example: ?role=pentester
     """
     # Base query
     query = db.query(User)
-    
+
     # Apply role filter if provided
     if role:
         # Case insensitive role comparison by converting to upper
         normalized_role = role.upper()
-        
+
         # Only apply role filter if it's a valid role
         try:
             valid_role = Role[normalized_role]
@@ -70,7 +70,7 @@ async def get_users(
         except (KeyError, ValueError):
             # If role is not valid, return empty list
             return []
-    
+
     # Apply access control based on current user's role
     if current_user.role in [Role.SUPER_ADMIN, Role.ADMIN]:
         # Admin sees all users (with optional role filter)
@@ -79,7 +79,7 @@ async def get_users(
         # Pentesters see other pentesters and clients
         if role:
             # If role filter is applied, respect it but within pentester's visibility
-            if normalized_role in ['PENTESTER', 'CLIENT']:
+            if normalized_role in ["PENTESTER", "CLIENT"]:
                 pass  # Role filter already applied above
             else:
                 # If filtered role is outside pentester's visibility, return empty list
@@ -89,22 +89,97 @@ async def get_users(
             query = query.filter(User.role.in_([Role.PENTESTER, Role.CLIENT]))
     else:
         # Clients see only pentesters
-        if role and normalized_role != 'PENTESTER':
+        if role and normalized_role != "PENTESTER":
             # If role filter is not pentester, return empty list for clients
             return []
         else:
             # Default visibility for clients - only see pentesters
             query = query.filter(User.role == Role.PENTESTER)
-    
+
     # Apply pagination
     users = query.offset(skip).limit(limit).all()
     return users
 
 
+# Get a specific user by ID
+@router.get("/{user_id}", response_model=UserResponse)
+async def get_user_by_id(
+    user_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Get a specific user by ID"""
+    # Get the user
+    user = crud_user.get_user(db, user_id=user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Check permissions
+    if current_user.role in [Role.SUPER_ADMIN, Role.ADMIN]:
+        # Admins can view any user
+        pass
+    elif current_user.role == Role.PENTESTER and user.role in [
+        Role.PENTESTER,
+        Role.CLIENT,
+    ]:
+        # Pentesters can view other pentesters and clients
+        pass
+    elif current_user.role == Role.CLIENT and user.role == Role.PENTESTER:
+        # Clients can view pentesters
+        pass
+    elif current_user.id == user.id:
+        # Users can view themselves
+        pass
+    else:
+        # Otherwise, deny access
+        raise HTTPException(
+            status_code=403, detail="Not authorized to access this user"
+        )
+
+    return user
+
+
+# Delete a user
+@router.delete("/{user_id}", status_code=204)
+async def delete_user(
+    user_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role([Role.SUPER_ADMIN, Role.ADMIN])),
+):
+    """Delete a user (admin only)"""
+    # Check if user exists
+    user = crud_user.get_user(db, user_id=user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Prevent deleting yourself
+    if user.id == current_user.id:
+        raise HTTPException(status_code=400, detail="Cannot delete your own account")
+
+    # Prevent deleting the last super admin
+    if user.role == Role.SUPER_ADMIN:
+        # Count super admins
+        super_admin_count = db.query(User).filter(User.role == Role.SUPER_ADMIN).count()
+        if super_admin_count <= 1:
+            raise HTTPException(
+                status_code=400, detail="Cannot delete the last super admin account"
+            )
+
+    # Delete the user
+    db.delete(user)
+    db.commit()
+
+    return None
+
+
 # Handle base path with POST
 @router.post("", response_model=UserSchema)
-async def create_new_user(user: UserCreate, db: Session = Depends(get_db)):
-    """Create a new user (accessible without authentication)"""
+async def create_new_user(
+    user: UserCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role([Role.SUPER_ADMIN, Role.ADMIN])),
+):
+    """Create a new user (admin only)"""
     # Check if username is taken
     db_user = crud_user.get_user_by_username(db, username=user.username)
     if db_user:
@@ -127,7 +202,13 @@ async def create_new_user(user: UserCreate, db: Session = Depends(get_db)):
         user.role = Role.USER
     # Handle lowercase role strings from frontend
     elif isinstance(user.role, str):
-        user.role = Role(user.role.upper())
+        try:
+            user.role = Role(user.role.upper())
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid role: {user.role}. Valid roles are: {', '.join([r.value for r in Role])}",
+            )
 
     # Create user
     return crud_user.create_user(db=db, user=user)
@@ -135,9 +216,58 @@ async def create_new_user(user: UserCreate, db: Session = Depends(get_db)):
 
 # Keep original endpoint for backward compatibility
 @router.post("/", response_model=UserSchema)
-async def create_user(user: UserCreate, db: Session = Depends(get_db)):
-    """Create a new user (accessible without authentication)"""
-    return await create_new_user(user, db)
+async def create_user(
+    user: UserCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role([Role.SUPER_ADMIN, Role.ADMIN])),
+):
+    """Create a new user (admin only)"""
+    return await create_new_user(user, db, current_user)
+
+
+# Update a user
+@router.put("/{user_id}", response_model=UserResponse)
+async def update_user(
+    user_id: UUID,
+    user_update: UserUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Update a user"""
+    # Check if user exists
+    user = crud_user.get_user(db, user_id=user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Check permissions
+    if current_user.role in [Role.SUPER_ADMIN, Role.ADMIN]:
+        # Admins can update any user
+        pass
+    elif current_user.id == user.id:
+        # Users can update themselves, but with restrictions
+        if user_update.role is not None and user_update.role != user.role:
+            raise HTTPException(status_code=403, detail="Cannot change your own role")
+    else:
+        # Otherwise, deny access
+        raise HTTPException(
+            status_code=403, detail="Not authorized to update this user"
+        )
+
+    # Handle role update
+    if user_update.role is not None and isinstance(user_update.role, str):
+        try:
+            user_update.role = Role(user_update.role.upper())
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid role: {user_update.role}. Valid roles are: {', '.join([r.value for r in Role])}",
+            )
+
+    # Update the user
+    updated_user = crud_user.update_user(
+        db, user_id=user_id, user_data=user_update.dict(exclude_unset=True)
+    )
+    return updated_user
 
 
 @router.post("/clients", response_model=ClientResponse, tags=["clients"])

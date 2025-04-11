@@ -40,6 +40,7 @@ export default function CreateProject() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [clientError, setClientError] = useState<string | null>(null);
     const [pentesterId, setPentesterId] = useState<string>("");
+    const [selectedPentesters, setSelectedPentesters] = useState<string[]>([]);
 
     // Fetch clients with robust error handling
     const {
@@ -113,10 +114,10 @@ export default function CreateProject() {
         }
 
         // Validate pentester selection
-        if (!pentesterId) {
+        if (!pentesterId && selectedPentesters.length === 0) {
             toast({
                 title: "Validation Error",
-                description: "Lead Pentester is required",
+                description: "At least one pentester must be assigned to the project",
                 variant: "destructive",
             });
             return;
@@ -125,10 +126,17 @@ export default function CreateProject() {
         setIsSubmitting(true);
 
         try {
+            // Combine single pentester and multiple pentesters
+            const allPentesters = [...selectedPentesters];
+            if (pentesterId && !allPentesters.includes(pentesterId)) {
+                allPentesters.push(pentesterId);
+            }
+
             const projectData = {
                 name: name.trim(),
                 client_id: clientId,
-                pentester_id: pentesterId,
+                pentester_id: allPentesters[0] || null, // For backward compatibility
+                pentester_ids: allPentesters,
                 status: status,
                 start_date: startDate,
                 end_date: endDate,
@@ -263,14 +271,14 @@ export default function CreateProject() {
                             </div>
 
                             <div className="space-y-2">
-                                <Label htmlFor="pentester">Lead Pentester *</Label>
+                                <Label htmlFor="pentester">Lead Pentester</Label>
                                 <Select
                                     value={pentesterId}
                                     onValueChange={setPentesterId}
                                     disabled={penterstersLoading || pentesters.length === 0}
                                 >
                                     <SelectTrigger id="pentester">
-                                        <SelectValue placeholder="Select a pentester" />
+                                        <SelectValue placeholder="Select a lead pentester" />
                                     </SelectTrigger>
                                     <SelectContent>
                                         {pentesters.map((pentester) => (
@@ -280,6 +288,42 @@ export default function CreateProject() {
                                         ))}
                                     </SelectContent>
                                 </Select>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="additional-pentesters">Additional Pentesters</Label>
+                                <div className="border rounded-md p-4">
+                                    <div className="space-y-2">
+                                        {pentesters.map((pentester) => (
+                                            <div key={pentester.id} className="flex items-center space-x-2">
+                                                <input
+                                                    type="checkbox"
+                                                    id={`pentester-${pentester.id}`}
+                                                    checked={selectedPentesters.includes(pentester.id)}
+                                                    onChange={(e) => {
+                                                        if (e.target.checked) {
+                                                            setSelectedPentesters([...selectedPentesters, pentester.id]);
+                                                        } else {
+                                                            setSelectedPentesters(selectedPentesters.filter(id => id !== pentester.id));
+                                                        }
+                                                    }}
+                                                    className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                                                />
+                                                <label htmlFor={`pentester-${pentester.id}`} className="text-sm">
+                                                    {pentester.username} {pentester.email && `(${pentester.email})`}
+                                                </label>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    {selectedPentesters.length > 0 && (
+                                        <div className="mt-2 text-sm text-muted-foreground">
+                                            {selectedPentesters.length} pentester{selectedPentesters.length !== 1 ? 's' : ''} selected
+                                        </div>
+                                    )}
+                                </div>
+                                <p className="text-xs text-muted-foreground">
+                                    Select one or more pentesters to assign to this project. At least one pentester must be assigned.
+                                </p>
                             </div>
 
                             <div className="space-y-2">

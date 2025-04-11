@@ -38,7 +38,7 @@ export function LoadingProvider({ children }: LoadingProviderProps) {
 
   return (
     <LoadingContext.Provider value={{ isLoading, startLoading, stopLoading }}>
-      {isLoading && <LoadingScreen message={loadingMessage} />}
+      {isLoading && <LoadingScreen text={loadingMessage} />}
       {children}
     </LoadingContext.Provider>
   );

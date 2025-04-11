@@ -14,6 +14,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import Link from "next/link";
+import vulnerabilitiesAPI from "@/lib/api/vulnerabilities";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ReactMarkdown from 'react-markdown';
 import rehypeRaw from 'rehype-raw';
@@ -176,7 +177,8 @@ export default function CreateVulnerabilityPage({ searchParams = {} }: { searchP
                 headers['X-Admin-Override'] = 'true';
             }
 
-            const response = await axios.post(`/api/vulnerabilities`, vulnerabilityData, { headers });
+            // Use the vulnerabilitiesAPI service instead of direct axios call
+            const response = { data: await vulnerabilitiesAPI.create(vulnerabilityData) };
 
             console.log('Vulnerability created successfully:', response.data);
             setSuccessMessage("Vulnerability created successfully!");

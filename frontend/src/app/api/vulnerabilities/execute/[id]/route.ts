@@ -32,6 +32,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
             const backendURL = getBackendURL();
             console.log(`Executing POC for vulnerability ${vulnerabilityId}`);
 
+            console.log(`Executing POC at: ${backendURL}/api/vulnerabilities/execute/${vulnerabilityId}`);
             const response = await axios.post(
                 `${backendURL}/api/vulnerabilities/execute/${vulnerabilityId}`,
                 {},

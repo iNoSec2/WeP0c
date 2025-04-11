@@ -164,7 +164,7 @@ export function Sidebar({ className }: SidebarProps) {
             <div className="border-t p-3">
                 <div className="flex items-center mb-3 px-2 py-1.5">
                     <div className="ml-2">
-                        <p className="text-sm font-medium">{user?.username || 'User'}</p>
+                        <p className="text-sm font-medium">{user?.full_name || 'User'}</p>
                         <p className="text-xs text-slate-500">{typeof user?.role === 'string' ? user.role : 'User'}</p>
                     </div>
                 </div>

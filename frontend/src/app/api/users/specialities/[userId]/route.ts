@@ -132,7 +132,8 @@ export async function POST(
 
         // Prepare backend URL
         const backendURL = getBackendURL();
-        const endpoint = `${backendURL}${userRoutes.addSpeciality(userId, speciality)}`;
+        // Construct the endpoint URL directly
+        const endpoint = `${backendURL}/api/users/${userId}/specialities/${speciality}`;
 
         // Make request to backend
         const response = await makeBackendRequest(endpoint, token, 'POST');
@@ -199,7 +200,8 @@ export async function DELETE(
 
             // Remove each speciality
             const removePromises = specialities.map(speciality => {
-                const removeEndpoint = `${backendURL}${userRoutes.removeSpeciality(userId, speciality)}`;
+                // Construct the endpoint URL directly
+                const removeEndpoint = `${backendURL}/api/users/${userId}/specialities/${speciality}`;
                 return makeBackendRequest(removeEndpoint, token, 'DELETE');
             });
 
@@ -229,4 +231,4 @@ export async function DELETE(
             { status }
         );
     }
-} 
+}

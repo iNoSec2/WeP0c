@@ -49,7 +49,7 @@ export const PocDisplay: React.FC<PocDisplayProps> = ({
 
     const handleExecute = async () => {
         try {
-            setIsExecuting(true);
+            setInternalIsExecuting(true);
             const response = await axios.post(`/api/vulnerabilities/execute/${vulnerability.id}`);
             setExecutionResult(response.data);
             onExecute?.(response.data);
@@ -64,7 +64,7 @@ export const PocDisplay: React.FC<PocDisplayProps> = ({
                 variant: 'destructive',
             });
         } finally {
-            setIsExecuting(false);
+            setInternalIsExecuting(false);
         }
     };
 

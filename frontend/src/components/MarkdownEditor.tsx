@@ -80,7 +80,7 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
           linkUrl: '',
           linkOpenType: '_blank',
           codeFold: true,
-          syncScrollMode: true,
+          syncScrollMode: ['rightFollowLeft', 'leftFollowRight'],
           imageCaptions: true,
           imagePaste: false,
           shortcuts: true,
@@ -100,7 +100,7 @@ export const MarkdownDisplay: React.FC<{ content: string; className?: string }> 
         rehypePlugins={[rehypeRaw, rehypeSanitize]}
         remarkPlugins={[remarkGfm]}
         components={{
-          code({ node, inline, className, children, ...props }) {
+          code({ node, inline, className, children, ...props }: { node?: any; inline?: boolean; className?: string; children?: React.ReactNode; }) {
             const match = /language-(\w+)/.exec(className || '');
             return !inline && match ? (
               <CodeBlock language={match[1]} code={String(children).replace(/\n$/, '')} />
