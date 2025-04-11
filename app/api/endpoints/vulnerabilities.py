@@ -90,7 +90,7 @@ async def get_all_vulnerabilities(
     return vulnerabilities
 
 
-@router.post("/create/{project_id}", response_model=Vulnerability)
+@router.post("/{project_id}", response_model=Vulnerability)
 async def create_vulnerability(
     project_id: UUID,
     vulnerability: VulnerabilityCreate,
@@ -205,7 +205,7 @@ async def get_vulnerability(
     return vulnerability
 
 
-@router.post("/vulnerabilities/upload_poc/{vulnerability_id}")
+@router.post("/upload_poc/{vulnerability_id}")
 async def upload_poc_file(
     vulnerability_id: UUID,
     poc_file: UploadFile = File(...),
@@ -237,7 +237,7 @@ async def upload_poc_file(
     return {"message": "PoC file uploaded successfully", "file_path": file_path}
 
 
-@router.put("/vulnerabilities/{vulnerability_id}", response_model=Vulnerability)
+@router.put("/{vulnerability_id}", response_model=Vulnerability)
 async def update_vulnerability(
     vulnerability_id: UUID,
     vulnerability: VulnerabilityCreate,
@@ -284,7 +284,7 @@ async def update_vulnerability(
         )
 
 
-@router.delete("/vulnerabilities/{vulnerability_id}")
+@router.delete("/{vulnerability_id}")
 async def delete_vulnerability(
     vulnerability_id: UUID,
     db: Session = Depends(get_db),
